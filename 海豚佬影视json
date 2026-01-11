@@ -12,7 +12,7 @@
         },
         {    
             "key": "热播影视",
-            "name": "热播｜APP",
+            "name": "🐬热播影视",
             "type": 3,
             "jar":"https://gitee.com/nm_nm/interface/raw/master/spider.jar;md5;06094f7f426755b6dd338459069a4e95",             "api": "csp_AppRJ",
             "searchable": 1,
