@@ -13,7 +13,7 @@
     "sites": [
         {
 			"key": "hpy_js_豆瓣[官]",
-			"name": "豆瓣┃视频",
+			"name": "豆瓣视频",
 			"type": 3,
 			"api": "https://gitlab.com/duomv/dzhipy/-/raw/main/drpy_libs/drpy2.min.js",
 			"searchable": 1,
