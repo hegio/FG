@@ -15,12 +15,6 @@
          "changeable":1,
          "ext":"https://gitee.com/yiwu369/6758/raw/master/JS/爱奇艺弹幕.js"
          },
-         {"key":"AQY",
-        "name":"🐬爱奇艺视频源2｜追剧",
-        "type":3,
-        "api":"https://file.icve.com.cn/file_doc/249/899/3E7E0C8A023B624CEC6BDCC200F06F02.js",
-        "ext":"https://cdn.waimaimingtang.com/file/images/bwc/20251023002031-6064033c16.js"
-        },
          {
          "key":"优酷弹幕",
          "name":"🐬优酷视频｜追剧",
@@ -32,12 +26,6 @@
          "changeable":1,
          "ext":"https://gitee.com/yiwu369/6758/raw/master/JS/优酷弹幕.js"
          },
-        {"key":"YK",
-        "name":"🐬优酷视频源2｜追剧",
-        "type":3,
-        "api":"https://file.icve.com.cn/file_doc/249/899/3E7E0C8A023B624CEC6BDCC200F06F02.js",
-        "ext":"https://cdn.waimaimingtang.com/file/images/bwc/20251023002200-507c3e8aae.js"
-         },
          {"key":"腾讯弹幕",
          "name":"🐬腾讯视频｜追剧",
          "jar":"https://gitee.com/yiwu369/6758/raw/master/jar/spider.jar",
@@ -48,12 +36,6 @@
          "changeable":1,
          "ext":"https://gitee.com/yiwu369/6758/raw/master/JS/腾讯弹幕.js"
          },
-        {"key":"TX",
-        "name":"🐬腾讯视频源2｜追剧",
-        "type":3,
-        "api":"https://file.icve.com.cn/file_doc/249/899/3E7E0C8A023B624CEC6BDCC200F06F02.js",
-        "ext":"https://cdn.waimaimingtang.com/file/images/bwc/20251023002144-0e40887294.js"
-        },
          {
          "key":"芒果弹幕",
          "name":"🐬芒果视频｜追剧",
@@ -65,12 +47,6 @@
           "changeable":1,
            "ext":"https://gitee.com/yiwu369/6758/raw/master/JS/芒果弹幕.js"
            },
-        {"key":"MG",
-        "name":"🐬芒果视频源2｜追剧",
-        "type":3,
-        "api":"https://file.icve.com.cn/file_doc/249/899/3E7E0C8A023B624CEC6BDCC200F06F02.js",
-        "ext":"https://cdn.waimaimingtang.com/file/images/bwc/20251023002108-a4795930ec.js"
-        },
         {"key": "sgys",
         "name": "🐬搜狗视频｜追剧",
         "type": 3,
