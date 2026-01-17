@@ -1,3 +1,4 @@
+
 {
     "spider": "./tvbox.jar",
     "logo": "https://pic.616pic.com/bg_w1180/00/05/06/RoTR1jeT9X.jpg",
@@ -518,6 +519,12 @@
             "type": 0,
             "ua": "okhttp/5.3.2",
             "url": "http://ezc.xtvantsc.xyz/litv.php"
+        },
+        {
+            "name": "🐬jackTV",
+            "type": 0,
+            "ua": "okhttp/5.3.2",
+            "url": "https://php.946985.filegear-sg.me/jackTV.m3u"
         },
         {
             "name": "🐬港台大陆频道无18",
