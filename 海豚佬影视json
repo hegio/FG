@@ -627,6 +627,12 @@
             "ua": "okhttp/5.3.2",
             "url": "https://php.946985.filegear-sg.me/jackTV.m3u"
         },
+       {
+            "name": "🐬台湾TV",
+            "type": 0,
+            "ua": "okhttp/5.3.2",
+            "url": "https://ox.html-5.me/i/8717473.txt"
+        }, 
         {
             "name": "🐬港台大陆频道",
             "type": 0,
