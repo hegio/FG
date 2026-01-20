@@ -208,6 +208,31 @@
 		}
         ],
     "parses": [
+             {
+      "name": "jy解析",
+      "type": 0,
+      "url": "https://jx.playerjy.com/?url="
+    },
+    {
+      "name": "1907解析",
+      "type": 0,
+      "url": "https://z1.im1907.top/?jx="
+    },
+{
+      "name": "咸鱼解析",
+      "type": 0,
+      "url": "https://jx.xymp4.cc/?url="
+    },
+{
+      "name": "全民解析",
+      "type": 0,
+      "url": "https://api.quanminjiexi.com/index.php?url="
+    },
+{
+      "name": "智能云解析",
+      "type": 0,
+      "url": "http://v9j.net/?url="
+    },
             {
               "name": "七哥解析",
               "type": 0,
