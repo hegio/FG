@@ -79,7 +79,29 @@
       "style": {
         "type": "list"
       },
-       {
+      {
+      "key": "雄鹰",
+      "name": "🦅雄鹰┃App",
+      "type": 3,
+      "api": "csp_XiongYingGuard",
+      "searchable": 1,
+      "quickSearch": 1,
+      "changeable": 0,
+      "filterable": 1,
+      "timeout": 10
+    },
+    {
+      "key": "鲸鱼",
+      "name": "🐳鲸鱼┃App",
+      "type": 3,
+      "api": "csp_JingYuGuard",
+      "searchable": 1,
+      "quickSearch": 1,
+      "changeable": 0,
+      "filterable": 1,
+      "timeout": 10
+    }, 
+      {
       "key": "量子2k",
       "name": "🐬量子影视｜追剧",
       "type": 1,
