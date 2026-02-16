@@ -618,6 +618,12 @@
             "ua": "okhttp",
             "url": "https://im5k.fun/vip.m3u"
         },
+         {
+            "name": "🦄综合直源",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "http://www.xymm.de5.net:8080/live.m3u"
+        },
         {
             "name": "🦄台湾频道(梯子台湾节点)",
             "type": 0,
