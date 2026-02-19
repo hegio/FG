@@ -101,4 +101,27 @@ jobs:
                             break
         
         with open(output_file, 'w', encoding='utf-8') as f:
-            f.write('\n'.
+            f.write('\n'.join(output))
+        
+        print(f"Converted {count} channels to M3U format")
+        print(f"First 20 lines of output:")
+        for line in output[:20]:
+            print(line)
+        EOF
+        
+        # 运行转换脚本
+        python3 convert.py
+        
+        # 同时创建一个备份的 港台大陆.m3u（内容相同）
+        cp playlist.m3u 港台大陆.m3u
+
+    - name: Commit and push if changed
+      run: |
+        git add -A
+        if git diff --staged --quiet; then
+          echo "No changes detected, skipping commit"
+        else
+          git commit -m "🔄 Auto-sync: Update playlist from FGBLH/FG [$(date '+%Y-%m-%d %H:%M')]"
+          git push
+          echo "Successfully pushed updates"
+        fi
