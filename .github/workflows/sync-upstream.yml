@@ -1,9 +1,9 @@
-name: Sync Upstream Playlist
+name: Sync Upstream Playlists
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # 每6小时自动同步一次
-  workflow_dispatch:  # 允许手动触发
+    - cron: '0 */6 * * *'  # 每6小时同步一次
+  workflow_dispatch:  # 手动触发
   push:
     branches: [main]
 
@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout your repository
+    - name: Checkout repository
       uses: actions/checkout@v4
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
@@ -23,105 +23,120 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
-    - name: Download upstream content
+    - name: Download upstream files
       run: |
-        echo "Downloading from upstream..."
-        # 尝试多个镜像源下载原文件
-        if curl -L --fail --max-time 30 -o "港台大陆.tmp" "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/港台大陆"; then
-          echo "Downloaded via ghfast.top"
-        elif curl -L --fail --max-time 30 -o "港台大陆.tmp" "https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/港台大陆"; then
-          echo "Downloaded via GitHub raw"
-        else
-          echo "::error::Failed to download upstream file"
-          exit 1
-        fi
+        # 定义要同步的文件列表（名称, 上游路径）
+        files=(
+          "港台大陆:https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/港台大陆"
+          "安博:https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/安博"
+        )
         
-        # 检查文件是否为空
-        if [ ! -s "港台大陆.tmp" ]; then
-          echo "::error::Downloaded file is empty"
-          exit 1
-        fi
-        
-        mv "港台大陆.tmp" "港台大陆"
-        echo "Downloaded $(wc -l < 港台大陆) lines"
+        for item in "${files[@]}"; do
+          name="${item%%:*}"
+          url="${item##*:}"
+          
+          echo "Downloading $name from $url"
+          
+          # 尝试多个镜像源
+          if curl -L --fail --max-time 30 -o "$name.tmp" "https://ghfast.top/$url"; then
+            echo "✓ Downloaded $name via ghfast.top"
+          elif curl -L --fail --max-time 30 -o "$name.tmp" "$url"; then
+            echo "✓ Downloaded $name via direct"
+          else
+            echo "::warning::Failed to download $name, keeping old version if exists"
+            continue
+          fi
+          
+          if [ -s "$name.tmp" ]; then
+            mv "$name.tmp" "$name"
+            echo "✓ Saved $name ($(wc -l < $name) lines)"
+          else
+            echo "::warning::Downloaded $name is empty"
+            rm -f "$name.tmp"
+          fi
+        done
 
-    - name: Convert to standard M3U format
+    - name: Convert to M3U format
       run: |
-        # 创建 Python 脚本来处理格式转换（比 shell 更可靠）
         cat > convert.py << 'EOF'
+        import os
         import re
         
-        input_file = '港台大陆'
-        output_file = 'playlist.m3u'
-        
-        try:
-            with open(input_file, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-        except UnicodeDecodeError:
-            # 如果 UTF-8 失败，尝试其他编码
-            with open(input_file, 'r', encoding='gbk') as f:
-                lines = f.readlines()
-        
-        output = ['#EXTM3U x-tvg-url=""']
-        current_group = '未分类'
-        count = 0
-        
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
+        def convert_file(input_file, output_file):
+            """将简易格式转换为标准M3U格式"""
+            if not os.path.exists(input_file):
+                print(f"⚠️  {input_file} not found, skipping")
+                return False
             
-            # 检测分组标记 (,#genre#)
-            if ',#genre#' in line:
-                current_group = line.replace(',#genre#', '').strip()
-                continue
+            try:
+                with open(input_file, 'r', encoding='utf-8') as f:
+                    lines = f.readlines()
+            except UnicodeDecodeError:
+                with open(input_file, 'r', encoding='gbk') as f:
+                    lines = f.readlines()
             
-            # 跳过 YouTube 链接（IPTV 软件不支持）
-            if 'youtube.com' in line or 'youtu.be' in line:
-                continue
+            output = ['#EXTM3U x-tvg-url=""']
+            current_group = '未分类'
+            count = 0
             
-            # 处理 "名称,URL" 格式
-            # 注意：URL 中可能包含逗号，所以要找到第一个 http 位置
-            if ',http' in line or ',p2p://' in line or ',rtmp://' in line or ',rtsp://' in line:
-                # 找到协议开始的位置
-                for protocol in ['http://', 'https://', 'p2p://', 'rtmp://', 'rtsp://']:
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                # 检测分组标记 (,#genre#)
+                if ',#genre#' in line:
+                    current_group = line.replace(',#genre#', '').strip()
+                    continue
+                
+                # 跳过 YouTube 链接
+                if 'youtube.com' in line or 'youtu.be' in line:
+                    continue
+                
+                # 处理 "名称,URL" 格式（支持 http/https/p2p/rtmp/rtsp）
+                for protocol in [',http://', ',https://', ',p2p://', ',rtmp://', ',rtsp://']:
                     if protocol in line:
-                        idx = line.find(',' + protocol)
-                        if idx != -1:
-                            name = line[:idx].strip()
-                            url = line[idx+1:].strip()
-                            
-                            # 清理名称中的多余空格
-                            name = re.sub(r'\s+', ' ', name)
-                            
-                            # 写入标准 M3U 格式
-                            output.append(f'#EXTINF:-1 group-title="{current_group}",{name}')
-                            output.append(url)
-                            count += 1
-                            break
+                        idx = line.find(protocol)
+                        name = line[:idx].strip()
+                        url = line[idx+1:].strip()
+                        
+                        # 清理名称
+                        name = re.sub(r'\s+', ' ', name)
+                        
+                        output.append(f'#EXTINF:-1 group-title="{current_group}",{name}')
+                        output.append(url)
+                        count += 1
+                        break
+            
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write('\n'.join(output))
+            
+            print(f"✓ Converted {input_file} -> {output_file} ({count} channels)")
+            return True
         
-        with open(output_file, 'w', encoding='utf-8') as f:
-            f.write('\n'.join(output))
+        # 转换两个文件
+        # 方案A：分别生成独立的m3u文件（推荐，便于管理）
+        convert_file("港台大陆", "playlist.m3u")
+        convert_file("安博", "anbo.m3u")  # 安博专用文件
         
-        print(f"Converted {count} channels to M3U format")
-        print(f"First 20 lines of output:")
-        for line in output[:20]:
-            print(line)
+        # 方案B：合并为一个文件（如需合并，取消下面注释）
+        # convert_file("港台大陆", "temp1.m3u")
+        # convert_file("安博", "temp2.m3u")
+        # os.system("cat temp1.m3u temp2.m3u | grep -v '^#EXTM3U' > combined.m3u")
+        # os.system("echo '#EXTM3U x-tvg-url=\\\"\\\"' | cat - combined.m3u > playlist.m3u && rm combined.m3u temp1.m3u temp2.m3u")
+        
+        print("Conversion completed")
         EOF
         
-        # 运行转换脚本
         python3 convert.py
-        
-        # 同时创建一个备份的 港台大陆.m3u（内容相同）
-        cp playlist.m3u 港台大陆.m3u
 
-    - name: Commit and push if changed
+    - name: Commit and push
       run: |
         git add -A
         if git diff --staged --quiet; then
-          echo "No changes detected, skipping commit"
+          echo "No changes to commit"
         else
-          git commit -m "🔄 Auto-sync: Update playlist from FGBLH/FG [$(date '+%Y-%m-%d %H:%M')]"
+          git commit -m "🔄 Auto-sync: Update playlists [$(date '+%Y-%m-%d %H:%M')]"
           git push
-          echo "Successfully pushed updates"
+          echo "✅ Successfully synced both files"
         fi
