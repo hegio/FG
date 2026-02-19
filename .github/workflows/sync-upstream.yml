@@ -1,0 +1,81 @@
+name: Sync Upstream Playlist
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # 每6小时自动同步一次（UTC时间）
+  workflow_dispatch:  # 允许手动触发（在Actions页面点击运行）
+  push:
+    branches: [main]  # 首次推送时触发一次
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout your repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+
+    - name: Configure Git
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Download upstream content
+      run: |
+        # 尝试多个镜像源下载原文件（容错处理）
+        echo "Downloading from upstream..."
+        
+        # 尝试 ghfast.top 代理
+        if curl -L --fail --max-time 30 -o "港台大陆.tmp" "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/港台大陆"; then
+          echo "Downloaded via ghfast.top"
+        # 失败则尝试 GitHub 直连
+        elif curl -L --fail --max-time 30 -o "港台大陆.tmp" "https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/港台大陆"; then
+          echo "Downloaded via GitHub raw"
+        else
+          echo "::error::Failed to download upstream file"
+          exit 1
+        fi
+        
+        # 检查文件是否为空
+        if [ ! -s "港台大陆.tmp" ]; then
+          echo "::error::Downloaded file is empty"
+          exit 1
+        fi
+        
+        # 转换为 UTF-8 编码（处理中文乱码）
+        file -i "港台大陆.tmp"
+        mv "港台大陆.tmp" "港台大陆"
+
+    - name: Generate M3U files
+      run: |
+        # 检查原文件是否已有 M3U 头部
+        if ! head -1 "港台大陆" | grep -q "^#EXTM3U"; then
+          echo "Adding M3U header..."
+          echo "#EXTM3U x-tvg-url=\"\"" > playlist.m3u
+          cat "港台大陆" >> playlist.m3u
+          echo "#EXTM3U x-tvg-url=\"\"" > 港台大陆.m3u
+          cat "港台大陆" >> 港台大陆.m3u
+        else
+          # 已有头部，直接复制
+          cp "港台大陆" playlist.m3u
+          cp "港台大陆" 港台大陆.m3u
+        fi
+        
+        echo "Generated files:"
+        ls -la *.m3u
+        echo "First 10 lines of playlist.m3u:"
+        head -10 playlist.m3u
+
+    - name: Commit and push if changed
+      run: |
+        git add -A
+        if git diff --staged --quiet; then
+          echo "No changes detected, skipping commit"
+        else
+          git commit -m "🔄 Auto-sync: Update playlist from FGBLH/FG [$(date '+%Y-%m-%d %H:%M')]"
+          git push
+          echo "Successfully pushed updates"
+        fi
