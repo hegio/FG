@@ -2,10 +2,10 @@ name: Sync Upstream Playlist
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # 每6小时自动同步一次（UTC时间）
-  workflow_dispatch:  # 允许手动触发（在Actions页面点击运行）
+    - cron: '0 */6 * * *'  # 每6小时自动同步一次
+  workflow_dispatch:  # 允许手动触发
   push:
-    branches: [main]  # 首次推送时触发一次
+    branches: [main]
 
 jobs:
   sync:
@@ -25,13 +25,10 @@ jobs:
 
     - name: Download upstream content
       run: |
-        # 尝试多个镜像源下载原文件（容错处理）
         echo "Downloading from upstream..."
-        
-        # 尝试 ghfast.top 代理
+        # 尝试多个镜像源下载原文件
         if curl -L --fail --max-time 30 -o "港台大陆.tmp" "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/港台大陆"; then
           echo "Downloaded via ghfast.top"
-        # 失败则尝试 GitHub 直连
         elif curl -L --fail --max-time 30 -o "港台大陆.tmp" "https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/港台大陆"; then
           echo "Downloaded via GitHub raw"
         else
@@ -45,37 +42,63 @@ jobs:
           exit 1
         fi
         
-        # 转换为 UTF-8 编码（处理中文乱码）
-        file -i "港台大陆.tmp"
         mv "港台大陆.tmp" "港台大陆"
+        echo "Downloaded $(wc -l < 港台大陆) lines"
 
-    - name: Generate M3U files
+    - name: Convert to standard M3U format
       run: |
-        # 检查原文件是否已有 M3U 头部
-        if ! head -1 "港台大陆" | grep -q "^#EXTM3U"; then
-          echo "Adding M3U header..."
-          echo "#EXTM3U x-tvg-url=\"\"" > playlist.m3u
-          cat "港台大陆" >> playlist.m3u
-          echo "#EXTM3U x-tvg-url=\"\"" > 港台大陆.m3u
-          cat "港台大陆" >> 港台大陆.m3u
-        else
-          # 已有头部，直接复制
-          cp "港台大陆" playlist.m3u
-          cp "港台大陆" 港台大陆.m3u
-        fi
+        # 创建 Python 脚本来处理格式转换（比 shell 更可靠）
+        cat > convert.py << 'EOF'
+        import re
         
-        echo "Generated files:"
-        ls -la *.m3u
-        echo "First 10 lines of playlist.m3u:"
-        head -10 playlist.m3u
-
-    - name: Commit and push if changed
-      run: |
-        git add -A
-        if git diff --staged --quiet; then
-          echo "No changes detected, skipping commit"
-        else
-          git commit -m "🔄 Auto-sync: Update playlist from FGBLH/FG [$(date '+%Y-%m-%d %H:%M')]"
-          git push
-          echo "Successfully pushed updates"
-        fi
+        input_file = '港台大陆'
+        output_file = 'playlist.m3u'
+        
+        try:
+            with open(input_file, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+        except UnicodeDecodeError:
+            # 如果 UTF-8 失败，尝试其他编码
+            with open(input_file, 'r', encoding='gbk') as f:
+                lines = f.readlines()
+        
+        output = ['#EXTM3U x-tvg-url=""']
+        current_group = '未分类'
+        count = 0
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # 检测分组标记 (,#genre#)
+            if ',#genre#' in line:
+                current_group = line.replace(',#genre#', '').strip()
+                continue
+            
+            # 跳过 YouTube 链接（IPTV 软件不支持）
+            if 'youtube.com' in line or 'youtu.be' in line:
+                continue
+            
+            # 处理 "名称,URL" 格式
+            # 注意：URL 中可能包含逗号，所以要找到第一个 http 位置
+            if ',http' in line or ',p2p://' in line or ',rtmp://' in line or ',rtsp://' in line:
+                # 找到协议开始的位置
+                for protocol in ['http://', 'https://', 'p2p://', 'rtmp://', 'rtsp://']:
+                    if protocol in line:
+                        idx = line.find(',' + protocol)
+                        if idx != -1:
+                            name = line[:idx].strip()
+                            url = line[idx+1:].strip()
+                            
+                            # 清理名称中的多余空格
+                            name = re.sub(r'\s+', ' ', name)
+                            
+                            # 写入标准 M3U 格式
+                            output.append(f'#EXTINF:-1 group-title="{current_group}",{name}')
+                            output.append(url)
+                            count += 1
+                            break
+        
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write('\n'.
