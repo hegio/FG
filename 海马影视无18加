@@ -590,7 +590,7 @@
             "url": "https://tv.iill.top/m3u/Gather"
         },
         {
-            "name": "🦄Mytv",
+            "name": "🦄mytv",
             "type": 0,
             "ua": "okhttp",
             "url": "https://tv.iill.top/m3u/MyTV"
