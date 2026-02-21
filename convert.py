@@ -1,7 +1,7 @@
 import os
 import re
 
-def convert_file(input_file, output_file):
+def convert_to_m3u(input_file, output_file):
     """将简易格式转换为标准M3U格式"""
     if not os.path.exists(input_file):
         print(f"⚠️  {input_file} not found, skipping")
@@ -32,14 +32,12 @@ def convert_file(input_file, output_file):
         if 'youtube.com' in line or 'youtu.be' in line:
             continue
         
-        # 处理 "名称,URL" 格式（支持 http/https/p2p/rtmp/rtsp）
+        # 处理 "名称,URL" 格式
         for protocol in [',http://', ',https://', ',p2p://', ',rtmp://', ',rtsp://']:
             if protocol in line:
                 idx = line.find(protocol)
                 name = line[:idx].strip()
                 url = line[idx+1:].strip()
-                
-                # 清理名称
                 name = re.sub(r'\s+', ' ', name)
                 
                 output.append(f'#EXTINF:-1 group-title="{current_group}",{name}')
@@ -53,15 +51,7 @@ def convert_file(input_file, output_file):
     print(f"✓ Converted {input_file} -> {output_file} ({count} channels)")
     return True
 
-# 转换两个文件
-# 方案A：分别生成独立的m3u文件（推荐，便于管理）
-convert_file("港台大陆", "playlist.m3u")
-convert_file("安博", "anbo.m3u")  # 安博专用文件
-
-# 方案B：合并为一个文件（如需合并，取消下面注释）
-# convert_file("港台大陆", "temp1.m3u")
-# convert_file("安博", "temp2.m3u")
-# os.system("cat temp1.m3u temp2.m3u | grep -v '^#EXTM3U' > combined.m3u")
-# os.system("echo '#EXTM3U x-tvg-url=\\\"\\\"' | cat - combined.m3u > playlist.m3u && rm combined.m3u temp1.m3u temp2.m3u")
-
-print("Conversion completed")
+# 只转换直播源文件（港台大陆、安博）
+# 注意：海马影视是TVBox配置文件，保持原样，不转换
+convert_to_m3u("港台大陆", "playlist.m3u")
+convert_to_m3u("安博", "anbo.m3u")
