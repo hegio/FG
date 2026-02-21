@@ -2,10 +2,8 @@ name: Sync Upstream Playlists
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # 每6小时同步一次
+    - cron: '0 */6 * * *'  # 每6小时同步
   workflow_dispatch:  # 手动触发
-  push:
-    branches: [main]
 
 jobs:
   sync:
@@ -16,7 +14,6 @@ jobs:
       uses: actions/checkout@v4
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-        fetch-depth: 0
 
     - name: Configure Git
       run: |
@@ -25,10 +22,11 @@ jobs:
 
     - name: Download upstream files
       run: |
-        # 定义要同步的文件列表（名称, 上游路径）
+        # 定义三个需要同步的文件
         files=(
           "港台大陆:https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/港台大陆"
           "安博:https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/安博"
+          "海马影视:https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/海马影视"
         )
         
         for item in "${files[@]}"; do
@@ -37,13 +35,13 @@ jobs:
           
           echo "Downloading $name from $url"
           
-          # 尝试多个镜像源
+          # 尝试下载
           if curl -L --fail --max-time 30 -o "$name.tmp" "https://ghfast.top/$url"; then
             echo "✓ Downloaded $name via ghfast.top"
           elif curl -L --fail --max-time 30 -o "$name.tmp" "$url"; then
             echo "✓ Downloaded $name via direct"
           else
-            echo "::warning::Failed to download $name, keeping old version if exists"
+            echo "::warning::Failed to download $name"
             continue
           fi
           
@@ -56,13 +54,13 @@ jobs:
           fi
         done
 
-    - name: Convert to M3U format
+    - name: Convert playlist files to M3U
       run: |
         cat > convert.py << 'EOF'
         import os
         import re
-        
-        def convert_file(input_file, output_file):
+
+        def convert_to_m3u(input_file, output_file):
             """将简易格式转换为标准M3U格式"""
             if not os.path.exists(input_file):
                 print(f"⚠️  {input_file} not found, skipping")
@@ -93,14 +91,12 @@ jobs:
                 if 'youtube.com' in line or 'youtu.be' in line:
                     continue
                 
-                # 处理 "名称,URL" 格式（支持 http/https/p2p/rtmp/rtsp）
+                # 处理 "名称,URL" 格式
                 for protocol in [',http://', ',https://', ',p2p://', ',rtmp://', ',rtsp://']:
                     if protocol in line:
                         idx = line.find(protocol)
                         name = line[:idx].strip()
                         url = line[idx+1:].strip()
-                        
-                        # 清理名称
                         name = re.sub(r'\s+', ' ', name)
                         
                         output.append(f'#EXTINF:-1 group-title="{current_group}",{name}')
@@ -113,30 +109,22 @@ jobs:
             
             print(f"✓ Converted {input_file} -> {output_file} ({count} channels)")
             return True
-        
-        # 转换两个文件
-        # 方案A：分别生成独立的m3u文件（推荐，便于管理）
-        convert_file("港台大陆", "playlist.m3u")
-        convert_file("安博", "anbo.m3u")  # 安博专用文件
-        
-        # 方案B：合并为一个文件（如需合并，取消下面注释）
-        # convert_file("港台大陆", "temp1.m3u")
-        # convert_file("安博", "temp2.m3u")
-        # os.system("cat temp1.m3u temp2.m3u | grep -v '^#EXTM3U' > combined.m3u")
-        # os.system("echo '#EXTM3U x-tvg-url=\\\"\\\"' | cat - combined.m3u > playlist.m3u && rm combined.m3u temp1.m3u temp2.m3u")
-        
-        print("Conversion completed")
+
+        # 只转换直播源文件（港台大陆、安博）
+        # 注意：海马影视是TVBox配置文件，保持原样，不转换
+        convert_to_m3u("港台大陆", "playlist.m3u")
+        convert_to_m3u("安博", "anbo.m3u")
         EOF
         
         python3 convert.py
 
-    - name: Commit and push
+    - name: Commit and push changes
       run: |
         git add -A
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
-          git commit -m "🔄 Auto-sync: Update playlists [$(date '+%Y-%m-%d %H:%M')]"
+          git commit -m "🔄 Auto-sync: Update all files [$(date '+%Y-%m-%d %H:%M')]"
           git push
-          echo "✅ Successfully synced both files"
+          echo "✅ Synced successfully"
         fi
