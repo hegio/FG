@@ -1,9 +1,9 @@
-name: Sync Upstream Playlists
+name: Sync Upstream Files
 
 on:
   schedule:
     - cron: '0 */6 * * *'  # 每6小时同步
-  workflow_dispatch:  # 手动触发
+  workflow_dispatch:
 
 jobs:
   sync:
@@ -20,13 +20,14 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
-    - name: Download upstream files
+    - name: Download all upstream files
       run: |
-        # 定义三个需要同步的文件
+        # 定义四个需要同步的文件
         files=(
           "港台大陆:https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/港台大陆"
           "安博:https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/安博"
           "海马影视:https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/海马影视"
+          "锋哥影视json:https://raw.githubusercontent.com/FGBLH/fgrjk/refs/heads/main/锋哥影视json"
         )
         
         for item in "${files[@]}"; do
@@ -35,33 +36,35 @@ jobs:
           
           echo "Downloading $name from $url"
           
-          # 尝试下载
+          # 尝试 ghfast.top 代理
           if curl -L --fail --max-time 30 -o "$name.tmp" "https://ghfast.top/$url"; then
             echo "✓ Downloaded $name via ghfast.top"
+          # 失败则尝试直连
           elif curl -L --fail --max-time 30 -o "$name.tmp" "$url"; then
             echo "✓ Downloaded $name via direct"
           else
-            echo "::warning::Failed to download $name"
+            echo "::warning::Failed to download $name, skipping"
             continue
           fi
           
+          # 检查文件是否有效
           if [ -s "$name.tmp" ]; then
             mv "$name.tmp" "$name"
             echo "✓ Saved $name ($(wc -l < $name) lines)"
           else
-            echo "::warning::Downloaded $name is empty"
+            echo "::warning::$name is empty, removed"
             rm -f "$name.tmp"
           fi
         done
 
-    - name: Convert playlist files to M3U
+    - name: Convert playlist files to M3U (保留YouTube链接)
       run: |
         cat > convert.py << 'EOF'
         import os
         import re
 
         def convert_to_m3u(input_file, output_file):
-            """将简易格式转换为标准M3U格式"""
+            """将简易格式转换为标准M3U格式（保留YouTube链接）"""
             if not os.path.exists(input_file):
                 print(f"⚠️  {input_file} not found, skipping")
                 return False
@@ -87,16 +90,15 @@ jobs:
                     current_group = line.replace(',#genre#', '').strip()
                     continue
                 
-                # 跳过 YouTube 链接
-                if 'youtube.com' in line or 'youtu.be' in line:
-                    continue
-                
+                # 【重要】取消 YouTube 链接过滤，保留所有链接
                 # 处理 "名称,URL" 格式
                 for protocol in [',http://', ',https://', ',p2p://', ',rtmp://', ',rtsp://']:
                     if protocol in line:
                         idx = line.find(protocol)
                         name = line[:idx].strip()
                         url = line[idx+1:].strip()
+                        
+                        # 清理名称中的多余空格
                         name = re.sub(r'\s+', ' ', name)
                         
                         output.append(f'#EXTINF:-1 group-title="{current_group}",{name}')
@@ -107,13 +109,15 @@ jobs:
             with open(output_file, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(output))
             
-            print(f"✓ Converted {input_file} -> {output_file} ({count} channels)")
+            print(f"✓ Converted {input_file} -> {output_file} ({count} channels, 保留YouTube链接)")
             return True
 
-        # 只转换直播源文件（港台大陆、安博）
-        # 注意：海马影视是TVBox配置文件，保持原样，不转换
+        # 只转换直播源文件
         convert_to_m3u("港台大陆", "playlist.m3u")
         convert_to_m3u("安博", "anbo.m3u")
+        
+        # TVBox配置文件保持原样，不转换
+        print("✓ 海马影视 和 锋哥影视json 保持原样（TVBox配置）")
         EOF
         
         python3 convert.py
@@ -121,10 +125,14 @@ jobs:
     - name: Commit and push changes
       run: |
         git add -A
+        
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
-          git commit -m "🔄 Auto-sync: Update all files [$(date '+%Y-%m-%d %H:%M')]"
+          git commit -m "🔄 Sync: Update files [$(date '+%Y-%m-%d %H:%M')]
+          
+          - 同步: 港台大陆, 安博, 海马影视, 锋哥影视json
+          - 保留YouTube链接"
           git push
-          echo "✅ Synced successfully"
+          echo "✅ Successfully synced all files"
         fi
