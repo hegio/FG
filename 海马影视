@@ -682,6 +682,9 @@
 		"bilibili",
 		"renrenmi"
 	],
+ "ads": [
+        "static-mozai.4gtv.tv"
+    ],
 "lives": [
         {
             "name": "🦄地方直播",
@@ -744,10 +747,10 @@
             "url": "https://t.freetv.fun/m3u/playlist.txt"
         },
         {
-            "name": "🦄综合直播源",
+            "name": "🦄4GTV(梯子台湾节点)",
             "type": 0,
             "ua": "okhttp",
-            "url": "http://www.xymm.de5.net:8080/live.m3u"
+            "url": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/4gtv"
         },
         {
             "name": "🦄台湾立视(梯子台湾节点)",
