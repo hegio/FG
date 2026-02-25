@@ -6,7 +6,7 @@
     "sites": [
         {
         "key":"爱奇艺弹幕",
-        "name":"🐙爱奇艺视频｜追剧",
+        "name":"🐙爱奇艺视频 TG:@usfgrjk",
         "jar":"https://gitee.com/yiwu369/6758/raw/master/jar/spider.jar",
         "type":3,
         "api":"https://gitee.com/yiwu369/6758/raw/master/JS/drpy2.min.js",
@@ -411,15 +411,6 @@
             "type": 0,
             "url": "https://jx.2s0.cn/player/?url="
           },
-        {  "name": "淡若青风",
-            "type": 1,
-            "url": "http:\/\/121.40.174.45:299\/api\/?key=C929E46077B4A0H&url=",
-            "ext": {
-            "header": {
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36 Edg/110.0.1587.57"
-        }
-      }
-     },     
       {
       "name": "极速",
       "type": 0,
@@ -674,19 +665,19 @@
     ],
 "lives": [
          {
-            "name": "🐙地方直播",
+            "name": "🐙地方直播 TG:@usfgrjk",
             "type": 0,
             "ua": "okhttp/5.3.2",
             "url": "https://ghfast.top/https://raw.githubusercontent.com/develop202/migu_video/refs/heads/main/interface.txt"
         }, 
          {
-            "name": "🐙地方直播2",
+            "name": "🐙地方直播2 TG:@usfgrjk",
             "type": 0,
             "ua": "okhttp/5.3.2",
             "url": "https://raw.githubusercontent.com/Guovin/iptv-api/gd/output/ipv4/result.m3u"
         }, 
         {
-            "name": "🐙电视家",
+            "name": "🐙电视家 TG:@usfgrjk",
             "type": 0,
             "ua": "okhttp",
             "url": "https://ghfast.top/https://raw.githubusercontent.com/wujiangliu/live-sources/refs/heads/main/电视家.m3u"
