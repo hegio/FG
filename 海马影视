@@ -718,13 +718,19 @@
             "ua": "okhttp",
             "url": "https://ghfast.top/https://raw.githubusercontent.com/wujiangliu/live-sources/refs/heads/main/电视家.m3u"
         },
-         {
+        {
             "name": "🦄裤佬TV",
             "type": 0,
             "ua": "okhttp",
             "url": "https://gh-proxy.org/https://raw.githubusercontent.com/Jsnzkpg/Jsnzkpg/Jsnzkpg/Jsnzkpg1.m3u"
         },
-         {
+        {
+            "name": "🦄环球斯玛特",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/环球斯玛特"
+        },
+        {
             "name": "🦄Gather",
             "type": 0,
             "ua": "okhttp",
