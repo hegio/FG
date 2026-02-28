@@ -803,6 +803,12 @@
             "url": "http://xtvantsc.xyz/新加坡.m3u"
         },
         {
+            "name": "🦄SingTel TV(新加坡家宽节点)",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/SingTelTV"
+        },
+        {
             "name": "🦄iptvpro🔞",
             "type": 0,
             "ua": "okhttp",
