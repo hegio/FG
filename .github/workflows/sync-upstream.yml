@@ -2,7 +2,7 @@ name: Sync Upstream Files
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # 每6小时同步
+    - cron: '0 */24 * * *'  # 每24小时同步
   workflow_dispatch:
 
 jobs:
