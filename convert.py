@@ -51,7 +51,7 @@ def convert_to_m3u(input_file, output_file):
     return True
 
 # 只转换直播源文件
-convert_to_m3u("港台大陆", "playlist.m3u")
+convert_to_m3u("zilongTV", "zilongTV.m3u")
 convert_to_m3u("海豚影视无18加", "haitun.m3u")
 
 # TVBox配置文件保持原样，不转换
