@@ -25,8 +25,8 @@ jobs:
         # 定义四个需要同步的文件
         files=(
           "港台大陆:https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/港台大陆"
-          "安博:https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/安博"
-          "海马影视:https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/海马影视"
+          "海豚影视无18加:https://raw.githubusercontent.com/FGBLH/FG/blob/main/海豚影视无18加"
+          "海豚影视:https://raw.githubusercontent.com/FGBLH/FG/blob/main/海豚影视"
           "锋哥影视json:https://raw.githubusercontent.com/FGBLH/fgrjk/refs/heads/main/锋哥影视json"
         )
         
@@ -114,10 +114,10 @@ jobs:
 
         # 只转换直播源文件
         convert_to_m3u("港台大陆", "playlist.m3u")
-        convert_to_m3u("安博", "anbo.m3u")
+        convert_to_m3u("海豚影视无18加", "haitun.m3u")
         
         # TVBox配置文件保持原样，不转换
-        print("✓ 海马影视 和 锋哥影视json 保持原样（TVBox配置）")
+        print("✓ 海豚影视 和 锋哥影视json 保持原样（TVBox配置）")
         EOF
         
         python3 convert.py
@@ -131,7 +131,7 @@ jobs:
         else
           git commit -m "🔄 Sync: Update files [$(date '+%Y-%m-%d %H:%M')]
           
-          - 同步: 港台大陆, 安博, 海马影视, 锋哥影视json
+          - 同步: 港台大陆, 海豚影视无18加, 海豚影视, 锋哥影视json
           - 保留YouTube链接"
           git push
           echo "✅ Successfully synced all files"
