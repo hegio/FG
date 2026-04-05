@@ -22,14 +22,13 @@ jobs:
 
     - name: Download all upstream files
       run: |
-        # 定义六个需要同步的文件（新增：海角黄色、zilong大陆TV）
+        # 定义四个需要同步的文件（保留原有）
         files=(
           "zilongTV:https://raw.githubusercontent.com/zilong7728/Collect-IPTV/refs/heads/main/best_sorted.m3u8"
           "海豚影视无18加:https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/%E6%B5%B7%E8%B1%9A%E5%BD%B1%E8%A7%86%E6%97%A018%E5%8A%A0"
           "海豚影视:https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/%E6%B5%B7%E8%B1%9A%E5%BD%B1%E8%A7%86"
-          "锋哥影视json:https://raw.githubusercontent.com/FGBLH/fgrjk/refs/heads/main/%E9%94%8B%E5%93%A5%E5%BD%B1%E8%A7%86json"
-          "海角黄色:https://raw.githubusercontent.com/FGBLH/fgrjk2/refs/heads/main/haijiao669"
-          "zilong大陆TV:https://raw.githubusercontent.com/zilong7728/Collect-IPTV/refs/heads/main/best_sorted.m3u8"
+          "锋哥影视json:https://raw.githubusercontent.com/FGBLH/fgrjk/refs/heads/main/锋哥影视json"
+          "haijiao669:https://raw.githubusercontent.com/FGBLH/fgrjk2/refs/heads/main/haijiao669"
         )
         
         for item in "${files[@]}"; do
@@ -52,22 +51,80 @@ jobs:
           # 检查文件是否有效
           if [ -s "$name.tmp" ]; then
             mv "$name.tmp" "$name"
-            echo "✓ Saved $name ($(wc -l < $name 2>/dev/null || wc -c < $name) lines/bytes)"
+            echo "✓ Saved $name ($(wc -l < $name 2>/dev/null || echo '?') lines)"
           else
             echo "::warning::$name is empty, removed"
             rm -f "$name.tmp"
           fi
         done
 
-    - name: Process files
+    - name: Add external live sources to 海豚影视
       run: |
-        cat > process.py << 'EOF'
+        cat > add_sources.py << 'EOF'
+        import json
+        import sys
+
+        def add_live_sources():
+            try:
+                with open('海豚影视', 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+            except Exception as e:
+                print(f"Error reading 海豚影视: {e}")
+                return False
+
+            # 定义要添加的外部直播源（格式：名称, URL）
+            new_sources = [
+                {
+                    "name": "🐬海角黄色",
+                    "type": 0,
+                    "ua": "okhttp",
+                    "url": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/fgrjk2/main/haijiao669"
+                },
+                {
+                    "name": "🐬zilong大陆TV",
+                    "type": 0,
+                    "ua": "okhttp",
+                    "url": "https://ghfast.top/https://raw.githubusercontent.com/zilong7728/Collect-IPTV/main/best_sorted.m3u8"
+                }
+            ]
+
+            # 获取现有名称列表，避免重复添加
+            existing_names = {item.get('name', '') for item in data.get('lives', [])}
+            
+            added_count = 0
+            for source in new_sources:
+                if source['name'] not in existing_names:
+                    data['lives'].append(source)
+                    print(f"✓ Added: {source['name']}")
+                    added_count += 1
+                else:
+                    print(f"⚠️  Already exists: {source['name']}")
+
+            if added_count > 0:
+                # 保存回文件（保持格式美观）
+                with open('海豚影视', 'w', encoding='utf-8') as f:
+                    json.dump(data, f, ensure_ascii=False, indent=4)
+                print(f"✓ Total {added_count} new sources added to 海豚影视")
+                return True
+            else:
+                print("No new sources to add")
+                return False
+
+        if __name__ == "__main__":
+            success = add_live_sources()
+            sys.exit(0 if success else 0)  # 即使没新增也不报错
+        EOF
+        
+        python3 add_sources.py
+
+    - name: Convert playlist files to M3U (保留YouTube链接)
+      run: |
+        cat > convert.py << 'EOF'
         import os
         import re
-        import shutil
 
         def convert_to_m3u(input_file, output_file):
-            """将简易格式（名称,URL）转换为标准M3U格式"""
+            """将简易格式转换为标准M3U格式（保留YouTube链接）"""
             if not os.path.exists(input_file):
                 print(f"⚠️  {input_file} not found, skipping")
                 return False
@@ -93,6 +150,7 @@ jobs:
                     current_group = line.replace(',#genre#', '').strip()
                     continue
                 
+                # 【重要】取消 YouTube 链接过滤，保留所有链接
                 # 处理 "名称,URL" 格式
                 for protocol in [',http://', ',https://', ',p2p://', ',rtmp://', ',rtsp://']:
                     if protocol in line:
@@ -111,46 +169,18 @@ jobs:
             with open(output_file, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(output))
             
-            print(f"✓ Converted {input_file} -> {output_file} ({count} channels)")
+            print(f"✓ Converted {input_file} -> {output_file} ({count} channels, 保留YouTube链接)")
             return True
 
-        def copy_if_m3u8(input_file, output_file):
-            """如果是标准M3U8文件，直接复制并重命名"""
-            if not os.path.exists(input_file):
-                print(f"⚠️  {input_file} not found")
-                return False
-            
-            # 检查是否是标准M3U8
-            with open(input_file, 'r', encoding='utf-8', errors='ignore') as f:
-                first_line = f.readline()
-            
-            if first_line.strip().startswith('#EXTM3U'):
-                shutil.copy(input_file, output_file)
-                print(f"✓ Copied M3U8 {input_file} -> {output_file}")
-                return True
-            else:
-                # 如果不是标准M3U8，尝试转换
-                print(f"ℹ️  {input_file} not standard M3U8, trying conversion...")
-                return convert_to_m3u(input_file, output_file)
-
-        # 1. 转换简易格式直播源（名称,URL 格式）
+        # 只转换直播源文件
+        convert_to_m3u("zilongTV", "zilongTV.m3u")
         convert_to_m3u("海豚影视无18加", "haitun.m3u")
         
-        # 2. 处理标准M3U8格式（直接复制为 .m3u）
-        copy_if_m3u8("zilong大陆TV", "zilong大陆TV.m3u")
-        
-        # 处理 zilongTV（如果存在）
-        if os.path.exists("zilongTV"):
-            copy_if_m3u8("zilongTV", "zilongTV.m3u")
-        
-        # 3. 以下文件保持原样（不转换）：
-        # - 海豚影视 (TVBox JSON配置)
-        # - 锋哥影视json (TVBox JSON配置)  
-        # - 海角黄色 (节点订阅文件，供v2rayN等使用)
-        print("✓ 保持原样的文件：海豚影视, 锋哥影视json, 海角黄色")
+        # TVBox配置文件保持原样，不转换
+        print("✓ 海豚影视 和 锋哥影视json 保持原样（TVBox配置）")
         EOF
         
-        python3 process.py
+        python3 convert.py
 
     - name: Commit and push changes
       run: |
@@ -159,11 +189,11 @@ jobs:
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
-          git commit -m "🔄 Sync: Update files [$(date '+%Y-%m-%d %H:%M')]
+          git commit -m "🔄 Sync: Update files with new live sources [$(date '+%Y-%m-%d %H:%M')]
           
-          - 同步: zilongTV, 海豚影视无18加, 海豚影视, 锋哥影视json
-          - 新增: 海角黄色, zilong大陆TV
-          - 生成: zilong大陆TV.m3u, zilongTV.m3u, haitun.m3u"
+          - 同步: zilongTV, 海豚影视无18加, 海豚影视, 锋哥影视json, haijiao669
+          - 新增直播源到海豚影视: 海角黄色, zilong大陆TV
+          - 保留YouTube链接"
           git push
           echo "✅ Successfully synced all files"
         fi
