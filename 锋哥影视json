@@ -629,6 +629,12 @@
             "url": "https://php.946985.filegear-sg.me/jackTV.m3u"
         },
         {
+            "name": "🐙catvod源",
+            "type": 0,
+            "ua": "okhttp/5.3.2",
+            "url": "https://live.catvod.com/?tk=691aed6eddc2e361474044878e71f344"
+        },
+        {
             "name": "🐙台湾频道(梯子台湾节点)",
             "type": 0,
             "ua": "okhttp",
