@@ -477,13 +477,13 @@
             "name": "🐬Gather",
             "type": 0,
             "ua": "okhttp",
-            "url": "https://tv.iill.top/m3u/Gather"
+            "url": "https://iptv.yang-1989.eu.org/m3u/Gather.m3u"
         },
         {
             "name": "🐬mytv",
             "type": 0,
             "ua": "okhttp",
-            "url": "https://tv.iill.top/m3u/MyTV"
+            "url": "https://od.lk/s/NjFfMTI2MzYwMjE5Xw/jjmytv.txt"
         },
          {
             "name": "🐬港台",
