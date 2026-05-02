@@ -1,6 +1,6 @@
 {
     "spider": "./tvbox.jar",
-    "logo": "https://ww3.sinaimg.cn/mw690/006qOrdQgy1i0w03zuxukj30qo11m41o.jpg",
+    "logo": "https://img.freepik.com/free-vector/cute-dolphin-swimming-cartoon-vector-icon-illustration-animal-nature-icon-isolated-flat-vector_138676-12582.jpg?semt=ais_hybrid&w=740&q=80",
     "wallpaper": "http://tool.teyonds.com/api",
     "warningText": "学习使用，资源来源于网络，请勿贩卖，请加载24小时后删除，出现其他问题与作者无关，请知悉！",
     "sites": [
@@ -128,22 +128,6 @@
             ]
         },
         {
-            "key": "csp_Kugou",
-            "name": "🐬酷狗音乐｜音乐",
-            "type": 3,
-            "api": "csp_Kugou",
-            "jar": "https://gitee.com/tianwikeji/jar/raw/master/Yoursmile.jar",
-            "playerType": 2,
-            "ext": {
-                "classes": [
-                    {
-                        "type_name": "酷狗",
-                        "type_id": "kugou"
-                    }
-                ]
-            }
-        },
-        {
             "key": "网易云音乐",
             "name": "🐬网易云｜音乐",
             "type": 3,
@@ -181,6 +165,43 @@
             "api": "https://py.doube.eu.org/v2/spider?site=6b5899d243816bacb8712de7ab6ceb89"
         },
         {
+            "key": "🈲🔞Pornhub.py",
+            "name": "🐬Pornhub｜🔞",
+            "type": 3,
+            "api": "https://od.lk/s/NjFfMTEyNjI0NTIzXw/Pornhub.py",
+            "searchable": 1,
+            "changeable": 1,
+            "quickSearch": 1,
+            "filterable": 1,
+            "playerType": 2
+        },
+        {
+            "key": "🈲🔞Xvideos.py",
+            "name": "🐬Xvideos｜🔞",
+            "type": 3,
+            "api": "https://od.lk/s/NjFfMTEyNjA1NTkzXw/xvideo.py",
+            "searchable": 1,
+            "changeable": 1,
+            "quickSearch": 1,
+            "filterable": 1,
+            "playerType": 2
+        },
+        {
+            "key": "csp_XYQHiker_jable",
+            "name": "🐬Jable/日本AV｜🔞",
+            "type": 3,
+            "api": "csp_XYQHiker",
+            "jar": "https://files.catbox.moe/2vr6o9.png",
+            "searchable": 1,
+            "quickSearch": 0,
+            "filterable": 0,
+            "ext": "https://ghfast.top/https://raw.githubusercontent.com/xwyjc/lwang/main/XYQHike/jable.json",
+            "style": {
+                "type": "rect",
+                "ratio": 1.6
+            }
+        },
+        {
             "key": "黄色仓库|AV",
             "name": "🐬黄色仓库(旧)｜🔞",
             "type": 1,
@@ -188,6 +209,21 @@
             "quickSearch": 1,
             "searchable": 1,
             "filterable": 0
+        },
+        {
+            "key": "csp_XYQHiker_黄色仓库123",
+            "name": "🐬黄色仓库｜🔞",
+            "type": 3,
+            "api": "csp_XYQHiker",
+            "jar": "https://files.catbox.moe/2vr6o9.png",
+            "searchable": 1,
+            "quickSearch": 0,
+            "filterable": 0,
+            "ext": "https://ghfast.top/https://raw.githubusercontent.com/xwyjc/lwang/main/XYQHike/黄色仓库123.json",
+            "style": {
+                "type": "rect",
+                "ratio": 1.6
+            }
         },
         {
             "key": "桃花资源|AV",
@@ -244,121 +280,6 @@
             "api": "https://91md.me/api.php/provide/vod/",
             "searchable": 1,
             "changeable": 1
-        }
-    ],
-    "proxy": [
-        "raw.githubusercontent.com",
-        "googlevideo.com",
-        "googleapis.com",
-        "youtube.com"
-    ],
-    "rules": [
-        {
-            "name": "火山嗅探",
-            "hosts": [
-                "huoshan.com"
-            ],
-            "regex": [
-                "item_id="
-            ]
-        },
-        {
-            "name": "抖音嗅探",
-            "hosts": [
-                "douyin.com"
-            ],
-            "regex": [
-                "is_play_url="
-            ]
-        },
-        {
-            "name": "農民嗅探",
-            "hosts": [
-                "toutiaovod.com"
-            ],
-            "regex": [
-                "video/tos/cn"
-            ]
-        },
-        {
-            "name": "七新嗅探",
-            "hosts": [
-                "api.52wyb.com"
-            ],
-            "regex": [
-                "m3u8?pt=m3u8"
-            ]
-        },
-        {
-            "name": "毛驢點擊",
-            "hosts": [
-                "www.maolvys.com"
-            ],
-            "script": [
-                "document.getElementsByClassName('swal-button swal-button--confirm')[0].click()"
-            ]
-        }
-    ],
-    "headers": [
-        {
-            "host": "img\\d+.doubanio.com",
-            "header": {
-                "Referer": "https://movie.douban.com"
-            }
-        },
-        {
-            "host": "img1.doubanio.com",
-            "header": {
-                "Referer": "https://movie.douban.com"
-            }
-        },
-        {
-            "host": "img2.doubanio.com",
-            "header": {
-                "Referer": "https://movie.douban.com"
-            }
-        },
-        {
-            "host": "img3.doubanio.com",
-            "header": {
-                "Referer": "https://movie.douban.com"
-            }
-        },
-        {
-            "host": "img4.doubanio.com",
-            "header": {
-                "Referer": "https://movie.douban.com"
-            }
-        },
-        {
-            "host": "img5.doubanio.com",
-            "header": {
-                "Referer": "https://movie.douban.com"
-            }
-        },
-        {
-            "host": "img6.doubanio.com",
-            "header": {
-                "Referer": "https://movie.douban.com"
-            }
-        },
-        {
-            "host": "img7.doubanio.com",
-            "header": {
-                "Referer": "https://movie.douban.com"
-            }
-        },
-        {
-            "host": "img8.doubanio.com",
-            "header": {
-                "Referer": "https://movie.douban.com"
-            }
-        },
-        {
-            "host": "img9.doubanio.com",
-            "header": {
-                "Referer": "https://movie.douban.com"
-            }
         }
     ],
     "parses": [
@@ -653,22 +574,16 @@
             ]
         }
     ],
-    "flags": [
-        "youku",
-        "qq",
-        "iqiyi",
-        "qiyi",
-        "letv",
-        "sohu",
-        "tudou",
-        "pptv",
-        "mgtv",
-        "wasu"
-    ],
     "ads": [
         "static-mozai.4gtv.tv"
     ],
     "lives": [
+        {
+            "name": "🐬各大源合集",
+            "type": 0,
+            "ua": "okhttp/5.3.2",
+            "url": "https://gh-proxy.org/https://raw.githubusercontent.com/807080747/zv/refs/heads/main/sese.txt"
+        },
         {
             "name": "🐬地方直播",
             "type": 0,
@@ -703,7 +618,7 @@
             "name": "🐬Mytv",
             "type": 0,
             "ua": "okhttp",
-            "url": "https://iptv.yang-1989.eu.org/m3u/MyTV"
+            "url": "https://cdn.qd.je/live.m3u"
         },
         {
             "name": "🐬黄蚂蚁先锋推流源",
@@ -760,7 +675,7 @@
             "url": "https://php.946985.filegear-sg.me/jackTV.m3u"
         },
         {
-            "name": "🐬playlist源",
+            "name": "🐬新港台频道",
             "type": 0,
             "ua": "okhttp",
             "url": "https://iptv.707626.xyz/sub/K5hMyUOy52A1rzUvV6s5pbADasExbi7x/playlist.m3u"
@@ -794,66 +709,6 @@
             "type": 0,
             "ua": "okhttp",
             "url": "http://xtvantsc.xyz/欧美2160.m3u"
-        },
-        {
-            "name": "🐬女优库1🔞",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://atomgit.com/gcw_OAaqxWb5/whostv/releases/download/whostv/Wotv1.m3u"
-        },
-        {
-            "name": "🐬女优库2🔞",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://atomgit.com/gcw_OAaqxWb5/whostv/releases/download/whostv/Wotv2.m3u"
-        },
-        {
-            "name": "🐬女优库3🔞",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://atomgit.com/gcw_OAaqxWb5/whostv/releases/download/whostv/Wotv3.m3u"
-        },
-        {
-            "name": "🐬女优库4🔞",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://atomgit.com/gcw_OAaqxWb5/whostv/releases/download/whostv/Wotv4.m3u"
-        },
-        {
-            "name": "🐬女优库5🔞",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://atomgit.com/gcw_OAaqxWb5/whostv/releases/download/whostv/Wotv5.m3u"
-        },
-        {
-            "name": "🐬女优库6🔞",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://atomgit.com/gcw_OAaqxWb5/whostv/releases/download/whostv/Wotv6.m3u"
-        },
-        {
-            "name": "🐬女优库7🔞",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://atomgit.com/gcw_OAaqxWb5/whostv/releases/download/whostv/Wotv7.m3u"
-        },
-        {
-            "name": "🐬女优库8🔞",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://atomgit.com/gcw_OAaqxWb5/whostv/releases/download/whostv/Wotv8.m3u"
-        },
-        {
-            "name": "🐬女优库9🔞",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://atomgit.com/gcw_OAaqxWb5/whostv/releases/download/whostv/Wotv9.m3u"
-        },
-        {
-            "name": "🐬女优库10🔞",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://atomgit.com/gcw_OAaqxWb5/whostv/releases/download/whostv/Wotv10.m3u"
         },
         {
             "name": "🐬海角黄色",
