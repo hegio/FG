@@ -43,6 +43,49 @@
             "ext": "http://www.meowtv.cn/js/meow.php?file=sgsp"
         },
         {
+            "key": "华视影院",
+            "name": "🐬华视影院｜追剧",
+            "type": 4,
+            "api": "http://zhangqun1818.serv00.net:5052/?sp=华视影院",
+            "searchable": 1,
+            "quickSearch": 1,
+            "filterable": 1
+        },
+        {
+            "key": "火狐",
+            "name": "🐬火狐影视🦊｜追剧",
+            "type": 1,
+            "api": "https://hhzyapi.com/api.php/provide/vod/",
+            "searchable": 1,
+            "quickSearch": 0,
+            "filterable": 1,
+            "categories": [
+                "内地剧",
+                "动作片",
+                "科幻片",
+                "战争片",
+                "喜剧片",
+                "爱情片",
+                "恐怖片",
+                "犯罪片",
+                "剧情片",
+                "冒险片",
+                "记录片",
+                "韩剧",
+                "香港剧",
+                "台湾剧",
+                "欧美剧",
+                "日剧",
+                "马泰剧",
+                "体育赛事",
+                "综艺",
+                "动画片",
+                "中国动漫",
+                "日本动漫",
+                "欧美动漫"
+            ]
+        },
+        {
             "key": "量子2k",
             "name": "🐬量子影视｜追剧",
             "type": 1,
@@ -128,6 +171,16 @@
             ]
         },
         {
+            "key": "七星短剧",
+            "name": "🐬七星丨短剧",
+            "type": 3,
+            "api": "https://mpimg.cn/down.php/48e9d346cdf6da376c53136693bec95a.py",
+            "searchable": 1,
+            "changeable": 1,
+            "quickSearch": 1,
+            "filterable": 1
+        },
+        {
             "key": "网易云音乐",
             "name": "🐬网易云｜音乐",
             "type": 3,
@@ -165,43 +218,6 @@
             "api": "https://py.doube.eu.org/v2/spider?site=6b5899d243816bacb8712de7ab6ceb89"
         },
         {
-            "key": "🈲🔞Pornhub.py",
-            "name": "🐬Pornhub｜🔞",
-            "type": 3,
-            "api": "https://od.lk/s/NjFfMTEyNjI0NTIzXw/Pornhub.py",
-            "searchable": 1,
-            "changeable": 1,
-            "quickSearch": 1,
-            "filterable": 1,
-            "playerType": 2
-        },
-        {
-            "key": "🈲🔞Xvideos.py",
-            "name": "🐬Xvideos｜🔞",
-            "type": 3,
-            "api": "https://od.lk/s/NjFfMTEyNjA1NTkzXw/xvideo.py",
-            "searchable": 1,
-            "changeable": 1,
-            "quickSearch": 1,
-            "filterable": 1,
-            "playerType": 2
-        },
-        {
-            "key": "csp_XYQHiker_jable",
-            "name": "🐬Jable/日本AV｜🔞",
-            "type": 3,
-            "api": "csp_XYQHiker",
-            "jar": "https://files.catbox.moe/2vr6o9.png",
-            "searchable": 1,
-            "quickSearch": 0,
-            "filterable": 0,
-            "ext": "https://ghfast.top/https://raw.githubusercontent.com/xwyjc/lwang/main/XYQHike/jable.json",
-            "style": {
-                "type": "rect",
-                "ratio": 1.6
-            }
-        },
-        {
             "key": "黄色仓库|AV",
             "name": "🐬黄色仓库(旧)｜🔞",
             "type": 1,
@@ -209,21 +225,6 @@
             "quickSearch": 1,
             "searchable": 1,
             "filterable": 0
-        },
-        {
-            "key": "csp_XYQHiker_黄色仓库123",
-            "name": "🐬黄色仓库｜🔞",
-            "type": 3,
-            "api": "csp_XYQHiker",
-            "jar": "https://files.catbox.moe/2vr6o9.png",
-            "searchable": 1,
-            "quickSearch": 0,
-            "filterable": 0,
-            "ext": "https://ghfast.top/https://raw.githubusercontent.com/xwyjc/lwang/main/XYQHike/黄色仓库123.json",
-            "style": {
-                "type": "rect",
-                "ratio": 1.6
-            }
         },
         {
             "key": "桃花资源|AV",
@@ -382,6 +383,105 @@
                     "user-agent": "Mozilla/5.0 (Linux; Android 13; V2049A Build/TP1A.220624.014; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/116.0.0.0 Mobile Safari/537.36"
                 }
             }
+        },
+        {
+            "name": "proxy",
+            "hosts": [
+                "hlsztemgsplive.miguvideo.com=hlsztemgsplive.188766.xyz",
+                "cache.ott.fifalive.itv.cmvideo.cn=fifalive.188766.xyz",
+                "iptv.huuc.edu.cn=huucv6.188766.xyz",
+                "raw.githubusercontent.com",
+                "googlevideo.com",
+                "cdn.v82u1l.com",
+                "cdn.iz8qkg.com",
+                "cdn.kin6c1.com",
+                "c.biggggg.com",
+                "c.olddddd.com",
+                "haiwaikan.com",
+                "www.histar.tv",
+                "youtube.com",
+                "uhibo.com",
+                ".*boku.*",
+                ".*nivod.*",
+                ".*ulivetv.*"
+            ]
+        },
+        {
+            "name": "海外看",
+            "hosts": [
+                "haiwaikan"
+            ],
+            "regex": [
+                "10.0099",
+                "10.3333",
+                "16.0599",
+                "8.1748",
+                "12.33",
+                "10.85"
+            ]
+        },
+        {
+            "name": "火山嗅探",
+            "hosts": [
+                "huoshan.com"
+            ],
+            "regex": [
+                "item_id="
+            ]
+        },
+        {
+            "name": "抖音嗅探",
+            "hosts": [
+                "douyin.com"
+            ],
+            "regex": [
+                "is_play_url="
+            ]
+        },
+        {
+            "name": "農民嗅探",
+            "hosts": [
+                "toutiaovod.com"
+            ],
+            "regex": [
+                "video/tos/cn"
+            ]
+        },
+        {
+            "name": "新视觉嗅探",
+            "hosts": [
+                "muzhi-video.bj.bcebos.com"
+            ],
+            "regex": [
+                "202403/"
+            ]
+        },
+        {
+            "name": "七新嗅探",
+            "hosts": [
+                "api.52wyb.com"
+            ],
+            "regex": [
+                "m3u8?pt=m3u8"
+            ]
+        },
+        {
+            "name": "夜市點擊",
+            "hosts": [
+                "yeslivetv.com"
+            ],
+            "script": [
+                "document.getElementsByClassName('vjs-big-play-button')[0].click()"
+            ]
+        },
+        {
+            "name": "毛驢點擊",
+            "hosts": [
+                "www.maolvys.com"
+            ],
+            "script": [
+                "document.getElementsByClassName('swal-button swal-button--confirm')[0].click()"
+            ]
         },
         {
             "name": "默认1",
@@ -575,7 +675,8 @@
         }
     ],
     "ads": [
-        "static-mozai.4gtv.tv"
+        "static-mozai.4gtv.tv",
+        "pv.vipwm.cc"
     ],
     "lives": [
         {
@@ -583,6 +684,13 @@
             "type": 0,
             "ua": "okhttp/5.3.2",
             "url": "https://gh-proxy.org/https://raw.githubusercontent.com/807080747/zv/refs/heads/main/sese.txt"
+        },
+        {
+            "name": "🐬综合直播",
+            "type": 0,
+            "playerType": 2,
+            "url": "https://ds65.tv1288.xyz",
+            "ua": "bingcha/1.1 (mianfeifenxiang) "
         },
         {
             "name": "🐬地方直播",
@@ -655,12 +763,6 @@
             "type": 0,
             "ua": "okhttp",
             "url": "https://t.freetv.fun/m3u/playlist.txt"
-        },
-        {
-            "name": "🐬台湾欢乐看源",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "http://ezc.xtvantsc.xyz/欢乐看.txt"
         },
         {
             "name": "🐬4GTV(梯子台湾节点)",
