@@ -33,16 +33,6 @@
             "ext": "https://cdn.waimaimingtang.com/file/images/bwc/20251023002108-a4795930ec.js"
         },
         {
-            "key": "sgys",
-            "name": "🐬搜狗视频｜追剧",
-            "type": 3,
-            "api": "http://www.meowtv.cn/js/drpy2.min.js",
-            "searchable": 1,
-            "quickSearch": 1,
-            "filterable": 1,
-            "ext": "http://www.meowtv.cn/js/meow.php?file=sgsp"
-        },
-        {
             "key": "华视影院",
             "name": "🐬华视影院｜追剧",
             "type": 4,
