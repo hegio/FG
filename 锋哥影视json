@@ -6,7 +6,7 @@
     "sites": [
         {
          "key":"AQY",
-        "name":"🐙爱奇艺｜追剧 锋哥影视永久免费如有收费的都是骗人的",
+        "name":"🐙爱奇艺｜追剧 锋哥影视永久免费如有收费的都是骗子",
         "type":3,
         "api":"https://file.icve.com.cn/file_doc/249/899/3E7E0C8A023B624CEC6BDCC200F06F02.js",
         "ext":"https://cdn.waimaimingtang.com/file/images/bwc/20251023002031-6064033c16.js"
@@ -692,12 +692,6 @@
             "url": "https://feer-cdn-bp.xpnb.qzz.io/xnkl.txt"
         },
         {
-            "name": "🐙74源",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://im5k.fun/vip.m3u"
-        },
-        {
             "name": "🐙风云源",
             "type": 0,
             "ua": "okhttp",
@@ -721,7 +715,13 @@
             "ua": "okhttp",
             "url": "https://www.985pan.com/down.php/bf5e9607ff407fcdd71f63928ea5bc79.txt"
         },
-       {
+        {
+            "name": "🐙斯玛特源",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://xsmt.ccwu.cc/xsmt/smt.php"
+        },
+        {
             "name": "🐙港奥台国际",
             "type": 0,
             "ua": "okhttp",
@@ -762,6 +762,12 @@
             "type": 0,
             "ua": "okhttp",
             "url": "https://epg.pw/test_channels_taiwan.m3u"
+        },
+        { 
+	        "name": "🐙午夜剧场🔞",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/午夜剧场.txt"
         },
         {
             "name": "🐙xxx视频资源🔞",
