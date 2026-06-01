@@ -22,7 +22,7 @@ jobs:
 
     - name: Download all upstream files
       run: |
-        # 定义所有需要同步的文件（根据实际仓库检查结果）
+        # 定义所有需要同步的文件
         files=(
           "zilongTV:https://raw.githubusercontent.com/zilong7728/Collect-IPTV/refs/heads/main/best_sorted.m3u8"
           "海豚影视无18加:https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/%E6%B5%B7%E8%B1%9A%E5%BD%B1%E8%A7%86%E6%97%A018%E5%8A%A0"
@@ -35,10 +35,8 @@ jobs:
           
           echo "Downloading $name from $url"
           
-          # 尝试 ghfast.top 代理
           if curl -L --fail --max-time 30 -o "$name.tmp" "https://ghfast.top/$url"; then
             echo "✓ Downloaded $name via ghfast.top"
-          # 失败则尝试直连
           elif curl -L --fail --max-time 30 -o "$name.tmp" "$url"; then
             echo "✓ Downloaded $name via direct"
           else
@@ -46,7 +44,6 @@ jobs:
             continue
           fi
           
-          # 检查文件是否有效
           if [ -s "$name.tmp" ]; then
             mv "$name.tmp" "$name"
             echo "✓ Saved $name ($(wc -l < $name 2>/dev/null || echo '?') lines)"
@@ -55,6 +52,11 @@ jobs:
             rm -f "$name.tmp"
           fi
         done
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
 
     - name: Add external live sources to 海豚影视
       run: |
@@ -70,7 +72,6 @@ jobs:
                 print(f"Error reading 海豚影视: {e}")
                 return False
 
-            # 定义要添加的外部直播源
             new_sources = [
                 {
                     "name": "🐬海角黄色",
@@ -117,10 +118,10 @@ jobs:
       run: |
         cat > generate_playlist.py << 'EOF'
         import base64
-        json
+        import json
         import re
-        urllib.parse
-        os
+        import urllib.parse
+        import os
 
         def parse_m3u_to_channels(filename, prefix=""):
             """解析 M3U 文件提取频道"""
@@ -132,19 +133,23 @@ jobs:
                 with open(filename, 'r', encoding='utf-8') as f:
                     lines = f.readlines()
                 
-                for line in lines:
+                for i, line in enumerate(lines):
                     line = line.strip()
                     if line.startswith('#EXTINF:-1'):
                         # 提取频道名
                         name_match = re.search(r',(.*)$', line)
                         if name_match:
                             name = name_match.group(1)
-                            next_line = next((next_line for next_line in lines[lines.index(line)+1:] if next_line.strip() and not next_line.strip().startswith('#')), '')
-                            if next_line and next_line.strip():
-                                url = next_line.strip()
-                                if url.startswith(('http', 'rtmp', 'rtsp', 'p2p')):
-                                    final_name = f"{prefix} {name}" if prefix else name
-                                    channels.append((final_name, url))
+                            # 查找下一行 URL
+                            next_line_index = i + 1
+                            while next_line_index < len(lines):
+                                next_line = lines[next_line_index].strip()
+                                if next_line and not next_line.startswith('#'):
+                                    if next_line.startswith(('http', 'rtmp', 'rtsp', 'p2p')):
+                                        final_name = f"{prefix} {name}" if prefix else name
+                                        channels.append((final_name, next_line))
+                                    break
+                                next_line_index += 1
             except Exception as e:
                 print(f"Error parsing {filename}: {e}")
             
@@ -249,7 +254,7 @@ jobs:
                 all_channels.extend(channels)
                 print(f"Extracted {len(channels)} live sources from {file_name}")
 
-        # 生成标准 M3U 文件（参考 EVILANGEL.m3u 格式）
+        # 生成标准 M3U 文件
         with open('playlist.m3u', 'w', encoding='utf-8') as f:
             f.write('#EXTM3U\n')
             f.write('#EXTINF:-1 tvg-name="🐬海豚影视综合",🐬海豚影视综合\n')
@@ -267,14 +272,14 @@ jobs:
         
         python3 generate_playlist.py
 
-    - name: Convert specific playlist files to M3U (保留YouTube链接)
+    - name: Convert specific playlist files to M3U
       run: |
         cat > convert.py << 'EOF'
         import os
         import re
 
         def convert_to_m3u(input_file, output_file):
-            """将简易格式转换为标准M3U格式（保留YouTube链接）"""
+            """将简易格式转换为标准M3U格式"""
             if not os.path.exists(input_file):
                 print(f"⚠️  {input_file} not found, skipping")
                 return False
@@ -325,8 +330,7 @@ jobs:
         convert_to_m3u("zilongTV", "zilongTV.m3u")
         convert_to_m3u("海豚影视无18加", "haitun.m3u")
         
-        # TVBox配置文件保持原样
-        print("✓ 海豚影视, 海豚影视GHK, 锋哥影视json 保持原样（TVBox配置）")
+        print("✓ 海豚影视, 海豚影视GHK 保持原样（TVBox配置）")
         EOF
         
         python3 convert.py
