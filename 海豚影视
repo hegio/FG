@@ -6,31 +6,47 @@
     "sites": [
         {
             "key": "AQY",
-            "name": "🐬爱奇艺｜追剧 TG: @usfgrjk",
+            "name": "🐬爱奇艺 海豚影视永久免费，如有收费的都是骗子",
             "type": 3,
             "api": "https://file.icve.com.cn/file_doc/249/899/3E7E0C8A023B624CEC6BDCC200F06F02.js",
             "ext": "https://cdn.waimaimingtang.com/file/images/bwc/20251023002031-6064033c16.js"
         },
         {
             "key": "YK",
-            "name": "🐬优酷视频｜追剧",
+            "name": "🐬优酷视频 海豚影视交流群 TG：@hshsjk9",
             "type": 3,
             "api": "https://file.icve.com.cn/file_doc/249/899/3E7E0C8A023B624CEC6BDCC200F06F02.js",
             "ext": "https://cdn.waimaimingtang.com/file/images/bwc/20251023002200-507c3e8aae.js"
         },
         {
             "key": "TX",
-            "name": "🐬腾讯视频｜追剧",
+            "name": "🐬腾讯视频",
             "type": 3,
             "api": "https://file.icve.com.cn/file_doc/249/899/3E7E0C8A023B624CEC6BDCC200F06F02.js",
             "ext": "https://cdn.waimaimingtang.com/file/images/bwc/20251023002144-0e40887294.js"
         },
         {
             "key": "MG",
-            "name": "🐬芒果TV｜追剧",
+            "name": "🐬芒果TV",
             "type": 3,
             "api": "https://file.icve.com.cn/file_doc/249/899/3E7E0C8A023B624CEC6BDCC200F06F02.js",
             "ext": "https://cdn.waimaimingtang.com/file/images/bwc/20251023002108-a4795930ec.js"
+        },
+        {
+            "key": "天涯资源",
+            "name": "🐬天涯资源",
+            "type": 0,
+            "api": "https://tyyszyapi.com/api.php/provide/vod/at/xml/?ac=list",
+            "searchable": 1,
+            "quickSearch": 1
+        },
+        {
+            "key": "iKun资源",
+            "name": "🐬iKun资源",
+            "type": 0,
+            "api": "https://ikunzyapi.com/api.php/provide/vod/at/xml",
+            "searchable": 1,
+            "quickSearch": 1
         },
         {
             "key": "闪电影视",
@@ -293,6 +309,15 @@
             ]
         },
         {
+            "key": "旺旺资源",
+            "name": "🐬旺旺短剧",
+            "type": 1,
+            "api": "https://api.wwzy.tv/api.php/provide/vod/?ac=list",
+            "playUrl": "",
+            "searchable": 1,
+            "quickSearch": 1
+        },
+        {
             "key": "网易云音乐",
             "name": "🐬网易云｜音乐",
             "type": 3,
@@ -309,6 +334,14 @@
             "name": "🐬AIvin｜🔞",
             "type": 0,
             "api": "http://lbapiby.com/api.php/provide/vod/at/xml"
+        },
+        {
+            "key": "香蕉资源",
+            "name": "🐬香蕉资源🔞",
+            "type": 0,
+            "api": "https://www.xiangjiaozyw.com/api.php/provide/vod/at/xml/",
+            "searchable": 1,
+            "quickSearch": 0
         },
         {
             "key": "大地采集",
@@ -740,17 +773,31 @@
     ],
     "lives": [
         {
-            "name": "🐬各大源合集",
+            "name": "🐬各大源合集 海豚影视永久免费如有收费的都是骗子",
             "type": 0,
             "ua": "okhttp/5.3.2",
             "url": "https://gh-proxy.org/https://raw.githubusercontent.com/807080747/zv/refs/heads/main/sese.txt"
         },
         {
-            "name": "🐬综合直播",
+            "name": "🐬综合直播 海豚影视交流群 TG：@hshsjk9 ",
             "type": 0,
             "playerType": 2,
             "url": "https://ds65.tv1288.xyz",
             "ua": "bingcha/1.1 (mianfeifenxiang) "
+        },
+        {
+            "name": "🐬综合直播2",
+            "type": 0,
+            "playerType": 2,
+            "url": "https://raw.githubusercontent.com/fleung49/star/refs/heads/main/mit",
+            "ua": "okhttp"
+        },
+        {
+            "name": "🐬电视家",
+            "type": 0,
+            "playerType": 2,
+            "ua": "okhttp",
+            "url": "https://gh-proxy.org/https://github.com/bang359/dsj/raw/main/dsjcs.txt"
         },
         {
             "name": "🐬地方直播",
@@ -765,10 +812,28 @@
             "url": "https://raw.githubusercontent.com/Guovin/iptv-api/gd/output/ipv4/result.m3u"
         },
         {
-            "name": "🐬电视家",
+            "name": "🐬多源直播",
+            "type": 0,
+            "ua": "okhttp/5.3.2",
+            "url": "http://tv.anbox.ip-ddns.com/live"
+        },
+        {
+            "name": "🐬国际TV 有🔞",
             "type": 0,
             "ua": "okhttp",
-            "url": "https://ghfast.top/https://raw.githubusercontent.com/wujiangliu/live-sources/refs/heads/main/电视家.m3u"
+            "url": "https://raw.githubusercontent.com/yihad168/tv/refs/heads/main/tv.m3u"
+        },
+        {
+            "name": "🐬国际TV",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://raw.githubusercontent.com/xJEYDAin/iptv/main/output/all_merged.m3u"
+        },
+        {
+            "name": "🐬UnifiTV(马来节点)",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/unifi.txt"
         },
         {
             "name": "🐬裤佬TV",
@@ -789,6 +854,12 @@
             "url": "https://cdn.qd.je/live.m3u"
         },
         {
+            "name": "🐬新加坡(梯子)",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "http://xtvantsc.xyz/新加坡.m3u"
+        },
+        {
             "name": "🐬黄蚂蚁先锋推流源",
             "type": 0,
             "ua": "okhttp",
@@ -801,22 +872,28 @@
             "url": "https://feer-cdn-bp.xpnb.qzz.io/xnkl.txt"
         },
         {
-            "name": "🐬74源",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://im5k.fun/vip.m3u"
-        },
-        {
             "name": "🐬风云源",
             "type": 0,
             "ua": "okhttp",
             "url": "http://iptv.4666888.xyz/FYTV.txt"
         },
         {
-            "name": "🐬易发源",
+            "name": "🐬易发源 有🔞",
             "type": 0,
             "ua": "okhttp",
             "url": "https://gh-proxy.org/https://raw.githubusercontent.com/fafa002/yf2025/refs/heads/main/yiyifafa.txt"
+        },
+        {
+            "name": "🐬俄罗斯源 有🔞",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://m3u.biluspeh.com/hls/token=M4xovdRfcMXMXS9M"
+        },
+        {
+            "name": "🐬飞扬源",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://www.985pan.com/down.php/bf5e9607ff407fcdd71f63928ea5bc79.txt"
         },
         {
             "name": "🐬港奥台国际",
@@ -834,13 +911,19 @@
             "name": "🐬4GTV(梯子台湾节点)",
             "type": 0,
             "ua": "okhttp",
-            "url": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/4gtv"
+            "url": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/4gtv"
         },
         {
-            "name": "🐬安博(梯子)",
+            "name": "🐬4GTV2",
             "type": 0,
             "ua": "okhttp",
-            "url": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/安博.txt"
+            "url": "https://ha.msbot.dpdns.org/4gtv_api.php"
+        },
+        {
+            "name": "🐬安博(梯子)卡顿 有🔞",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/安博.txt"
         },
         {
             "name": "🐬jackTV(梯子)",
@@ -861,16 +944,34 @@
             "url": "https://epg.pw/test_channels_taiwan.m3u"
         },
         {
+            "name": "🐬午夜剧场🔞",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/午夜剧场.txt"
+        },
+        {
             "name": "🐬海豚佬xxx视频资源🔞",
             "type": 0,
             "ua": "okhttp",
-            "url": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/FG/refs/heads/main/xxx视频资源"
+            "url": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/xxx视频资源"
         },
         {
             "name": "🐬欧美大片直播🔞",
             "type": 0,
             "ua": "okhttp",
             "url": "http://xtvantsc.xyz/欧美2160.m3u"
+        },
+        {
+            "name": "🐬EVILANGEL🔞",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/EVILANGEL.m3u"
+        },
+        {
+            "name": "🐬FC2-PPV1🔞",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/fgrjk/refs/heads/main/FC2-PPV1.m3u"
         },
         {
             "name": "🐬日本女优1🔞",

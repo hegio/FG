@@ -55,4 +55,4 @@ convert_to_m3u("zilongTV", "zilongTV.m3u")
 convert_to_m3u("海豚影视无18加", "haitun.m3u")
 
 # TVBox配置文件保持原样，不转换
-print("✓ 海豚影视 和 锋哥影视json 保持原样（TVBox配置）")
+print("✓ 海豚影视.json 和 锋哥影视json 保持原样（TVBox配置）")

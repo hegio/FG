@@ -3,10 +3,10 @@ import sys
 
 def add_live_sources():
     try:
-        with open('海豚影视', 'r', encoding='utf-8') as f:
+        with open('海豚影视.json', 'r', encoding='utf-8') as f:
             data = json.load(f)
     except Exception as e:
-        print(f"Error reading 海豚影视: {e}")
+        print(f"Error reading 海豚影视.json: {e}")
         return False
 
     # 定义要添加的外部直播源（格式：名称, URL）
@@ -41,7 +41,7 @@ def add_live_sources():
         # 保存回文件（保持格式美观）
         with open('海豚影视', 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
-        print(f"✓ Total {added_count} new sources added to 海豚影视")
+        print(f"✓ Total {added_count} new sources added to 海豚影视.json")
         return True
     else:
         print("No new sources to add")
