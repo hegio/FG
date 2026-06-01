@@ -26,7 +26,7 @@ jobs:
         files=(
           "zilongTV:https://raw.githubusercontent.com/zilong7728/Collect-IPTV/refs/heads/main/best_sorted.m3u8"
           "海豚影视无18加:https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/%E6%B5%B7%E8%B1%9A%E5%BD%B1%E8%A7%86%E6%97%A018%E5%8A%A0"
-          "海豚影视:https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/%E6%B5%B7%E8%B1%9A%E5%BD%B1%E8%A7%86"
+          "海豚影视.json:https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/%E6%B5%B7%E8%B1%9A%E5%BD%B1%E8%A7%86.json"
           "锋哥影视json:https://raw.githubusercontent.com/FGBLH/fgrjk/refs/heads/main/锋哥影视json"
           "haijiao669:https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/haijiao669"
         )
@@ -58,7 +58,7 @@ jobs:
           fi
         done
 
-    - name: Add external live sources to 海豚影视
+    - name: Add external live sources to 海豚影视.json
       run: |
         cat > add_sources.py << 'EOF'
         import json
@@ -66,10 +66,10 @@ jobs:
 
         def add_live_sources():
             try:
-                with open('海豚影视', 'r', encoding='utf-8') as f:
+                with open('海豚影视.json', 'r', encoding='utf-8') as f:
                     data = json.load(f)
             except Exception as e:
-                print(f"Error reading 海豚影视: {e}")
+                print(f"Error reading 海豚影视.json: {e}")
                 return False
 
             # 定义要添加的外部直播源（格式：名称, URL）
@@ -104,7 +104,7 @@ jobs:
                 # 保存回文件（保持格式美观）
                 with open('海豚影视', 'w', encoding='utf-8') as f:
                     json.dump(data, f, ensure_ascii=False, indent=4)
-                print(f"✓ Total {added_count} new sources added to 海豚影视")
+                print(f"✓ Total {added_count} new sources added to 海豚影视.json")
                 return True
             else:
                 print("No new sources to add")
@@ -177,7 +177,7 @@ jobs:
         convert_to_m3u("海豚影视无18加", "haitun.m3u")
         
         # TVBox配置文件保持原样，不转换
-        print("✓ 海豚影视 和 锋哥影视json 保持原样（TVBox配置）")
+        print("✓ 海豚影视.json 和 锋哥影视json 保持原样（TVBox配置）")
         EOF
         
         python3 convert.py
@@ -191,7 +191,7 @@ jobs:
         else
           git commit -m "🔄 Sync: Update files with new live sources [$(date '+%Y-%m-%d %H:%M')]
           
-          - 同步: zilongTV, 海豚影视无18加, 海豚影视, 锋哥影视json, haijiao669
+          - 同步: zilongTV, 海豚影视无18加, 海豚影视.json, 锋哥影视json, haijiao669
           - 新增直播源到海豚影视: 海角黄色, zilong大陆TV
           - 保留YouTube链接"
           git push
