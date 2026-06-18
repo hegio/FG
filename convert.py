@@ -2,7 +2,7 @@ import os
 import re
 
 def convert_to_m3u(input_file, output_file):
-    """将简易格式转换为标准M3U格式（保留YouTube链接）"""
+    """将简易格式转换为标准M3U格式"""
     if not os.path.exists(input_file):
         print(f"⚠️  {input_file} not found, skipping")
         return False
@@ -28,7 +28,6 @@ def convert_to_m3u(input_file, output_file):
             current_group = line.replace(',#genre#', '').strip()
             continue
         
-        # 【重要】取消 YouTube 链接过滤，保留所有链接
         # 处理 "名称,URL" 格式
         for protocol in [',http://', ',https://', ',p2p://', ',rtmp://', ',rtsp://']:
             if protocol in line:
@@ -47,12 +46,11 @@ def convert_to_m3u(input_file, output_file):
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write('\n'.join(output))
     
-    print(f"✓ Converted {input_file} -> {output_file} ({count} channels, 保留YouTube链接)")
+    print(f"✓ Converted {input_file} -> {output_file} ({count} channels)")
     return True
 
-# 只转换直播源文件
+# 转换特定文件
 convert_to_m3u("zilongTV", "zilongTV.m3u")
-convert_to_m3u("海豚影视无18加", "haitun.m3u")
+convert_to_m3u("海豚无18加555", "haitun.m3u")
 
-# TVBox配置文件保持原样，不转换
-print("✓ 海豚影视.json 和 锋哥影视json 保持原样（TVBox配置）")
+print("✓ 海豚影视, 海豚666 保持原样（TVBox配置）")
