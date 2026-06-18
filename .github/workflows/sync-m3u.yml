@@ -1,352 +1,281 @@
 name: Sync Upstream Files
 
+# ────────────────── 触发条件 ──────────────────
 on:
   schedule:
-    - cron: '0 */6 * * *'  # 每24小时同步
-  workflow_dispatch:
+    # 每 6 小时（0,6,12,18）同步一次
+    - cron: '0 */6 * * *'
+  workflow_dispatch:   # 手动触发
 
+# ────────────────── 运行环境 ──────────────────
 jobs:
   sync:
     runs-on: ubuntu-latest
-    
+    # 抑制 Node.js 20 的过期警告（可选）
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+      # ── 1️⃣ 拉取当前仓库代码 ──
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Configure Git
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
+      # ── 2️⃣ Git 配置（提交用） ──
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-    - name: Download all upstream files
-      run: |
-        # 定义所有需要同步的文件
-        files=(
-          "zilongTV:https://raw.githubusercontent.com/zilong7728/Collect-IPTV/refs/heads/main/best_sorted.m3u8"
-          "海豚无18加555:https://github.com/FGBLH/GHK/blob/main/%E6%B5%B7%E8%B1%9A%E6%97%A018%E5%8A%A0555.json"
-          "海豚666:https://github.com/FGBLH/GHK/blob/main/%E6%B5%B7%E8%B1%9A666.json"
-        )
-        
-        for item in "${files[@]}"; do
-          name="${item%%:*}"
-          url="${item##*:}"
+      # ── 3️⃣ 下载所有 upstream 文件（使用 Raw 链接） ──
+      - name: Download all upstream files
+        run: |
+          # 这里列出所有需要同步的文件（key:raw‑url）
+          files=(
+            # 1️⃣ 公开的 M3U
+            "zilongTV:https://raw.githubusercontent.com/zilong7728/Collect-IPTV/refs/heads/main/best_sorted.m3u8"
+
+            # 2️⃣ GHK 项目中的 2 个 JSON（海豚 555、海豚 666）
+            "海豚无18加555:https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/%E6%B5%B7%E8%B1%9A%E6%97%A018%E5%8A%A0555.json"
+            "海豚666:https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/%E6%B5%B7%E8%B1%9A666.json"
+
+            # 3️⃣ 额外的 “鱼壳海豚” JSON
+            "鱼壳海豚:https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/%E9%B1%BC%E5%A3%B3%E6%B5%B7%E8%B1%9A.json"
+          )
+
+          for item in "${files[@]}"; do
+            name="${item%%:*}"
+            url="${item##*:}"
+            echo "👉 Downloading $name ..."
+            
+            # 先走 ghfast（加速） → 失败再直连
+            if curl -L --fail --max-time 30 -o "$name.tmp" "https://ghfast.top/$url"; then
+              echo "✅ $name 下载成功（ghfast）"
+            elif curl -L --fail --max-time 30 -o "$name.tmp" "$url"; then
+              echo "✅ $name 下载成功（direct）"
+            else
+              echo "::warning::Failed to download $name – skipping"
+              continue
+            fi
+            
+            # 文件非空才保留
+            if [ -s "$name.tmp" ]; then
+              mv "$name.tmp" "$name"
+              echo "📦 $name 已保存 ($(wc -l < $name 2>/dev/null || echo '?') 行) "
+            else
+              echo "::warning::$name 内容为空，已删除"
+              rm -f "$name.tmp"
+            fi
+          done
+
+      # ── 4️⃣ 安装 Python（后面用到） ──
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      # ── 5️⃣ 为 “海豚影视” 添加自定义直播源（只在 JSON 中） ──
+      - name: Add external live sources to 海豚影视
+        run: |
+          cat > add_sources.py << 'EOF'
+          import json, sys
+
+          def add_live_sources():
+              try:
+                  with open('海豚影视', 'r', encoding='utf-8') as f:
+                      data = json.load(f)
+              except Exception as e:
+                  print(f"[ERROR] 读取 海豚影视 失败: {e}")
+                  return False
+
+              new_sources = [
+                  {
+                      "name": "🐬海角黄色",
+                      "type": 0,
+                      "ua": "okhttp",
+                      "url": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/fgrjk2/main/haijiao669"
+                  },
+                  {
+                      "name": "🐬zilong大陆TV",
+                      "type": 0,
+                      "ua": "okhttp",
+                      "url": "https://ghfast.top/https://raw.githubusercontent.com/zilong7728/Collect-IPTV/main/best_sorted.m3u8"
+                  }
+              ]
+
+              existed = {i.get('name', '') for i in data.get('lives', [])}
+              added = 0
+              for src in new_sources:
+                  if src['name'] not in existed:
+                      data.setdefault('lives', []).append(src)
+                      print(f"[INFO] Added {src['name']}")
+                      added += 1
+                  else:
+                      print(f"[WARN] 已存在 {src['name']}")
+
+              if added:
+                  with open('海豚影视', 'w', encoding='utf-8') as f:
+                      json.dump(data, f, ensure_ascii=False, indent=4)
+                  print(f"[INFO] 共新增 {added} 条直播源")
+                  return True
+              return False
+
+          if __name__ == '__main__':
+              sys.exit(0 if add_live_sources() else 0)
+          EOF
+          python3 add_sources.py
+
+      # ── 6️⃣ 生成综合的 FgPlayList.m3u（遵循 EVILANGEL.m3u 结构） ──
+      - name: Generate comprehensive FgPlayList.m3u
+        run: |
+          cat > generate_FgPlayList.py << 'EOF'
+          #!/usr/bin/env python3
+          import os, json, base64, re, urllib.parse
+
+          # --------------------------------------------------------------
+          # 1️⃣ 解析普通 M3U（如 zilongTV、海豚无18加555）
+          # --------------------------------------------------------------
+          def parse_m3u(file_path, prefix=""):
+              if not os.path.isfile(file_path):
+                  return []
+              channels = []
+              with open(file_path, 'r', encoding='utf-8') as f:
+                  lines = f.readlines()
+              i = 0
+              while i < len(lines):
+                  line = lines[i].strip()
+                  if line.startswith('#EXTINF:-1'):
+                      # 取名称
+                      name_match = re.search(r',(.*)$', line)
+                      name = name_match.group(1).strip() if name_match else "未知"
+                      # 下一行应为 URL
+                      j = i + 1
+                      while j < len(lines):
+                          nxt = lines[j].strip()
+                          if nxt and not nxt.startswith('#'):
+                              if nxt.startswith(('http','rtmp','rtsp','p2p')):
+                                  full_name = f"{prefix} {name}" if prefix else name
+                                  channels.append((full_name, nxt))
+                              break
+                          j += 1
+                  i += 1
+              return channels
+
+          # --------------------------------------------------------------
+          # 2️⃣ 解析 GHK / 鱼壳海豚 JSON（结构统一为 {"lives":[{...}]})
+          # --------------------------------------------------------------
+          def extract_from_json(file_path):
+              if not os.path.isfile(file_path):
+                  return []
+              with open(file_path, 'r', encoding='utf-8') as f:
+                  data = json.load(f)
+
+              # 兼容可能的字段名：url / link / stream
+              result = []
+              for item in data.get('lives', []):
+                  url = item.get('url') or item.get('link') or item.get('stream')
+                  name = item.get('name') or item.get('title') or '未知'
+                  if url:
+                      result.append((name, url))
+              return result
+
+          # --------------------------------------------------------------
+          # 3️⃣ 收集全部频道
+          # --------------------------------------------------------------
+          all_channels = []
+
+          # ① M3U 文件
+          m3u_sources = [
+              ("zilongTV", "🐬"),
+              ("海豚无18加555", "🐬"),
+          ]
+          for fname, prefix in m3u_sources:
+              if os.path.isfile(fname):
+                  ch = parse_m3u(fname, prefix)
+                  all_channels.extend(ch)
+                  print(f"[INFO] {fname}: 解析到 {len(ch)} 条频道")
+
+          # ② JSON（海豚666、鱼壳海豚）
+          json_sources = ["海豚666", "鱼壳海豚"]
+          for fname in json_sources:
+              if os.path.isfile(fname):
+                  ch = extract_from_json(fname)
+                  all_channels.extend(ch)
+                  print(f"[INFO] {fname}: 解析到 {len(ch)} 条直播源")
+
+          # --------------------------------------------------------------
+          # 4️⃣ 写入符合 EVILANGEL.m3u 格式的文件
+          # --------------------------------------------------------------
+          out_path = "FgPlayList.m3u"
+          with open(out_path, "w", encoding="utf-8") as out:
+              out.write("#EXTM3U\n")
+              # 这里自定义一个总的 “海豚综合” 项（随意，可自行修改）
+              out.write('#EXTINF:-1 tvg-name="🐬海豚影视综合",🐬海豚影视综合\n')
+              out.write("http://127.0.0.1/placeholder\n")
+              
+              for name, url in all_channels:
+                  # 清理名称中可能的非法字符（| \ / * ? : < > "）
+                  clean_name = re.sub(r'[|\\/*?:<>"]', '', name)
+                  out.write(f'#EXTINF:-1 tvg-name="{clean_name}",{clean_name}\n')
+                  out.write(f'{url}\n')
+
+          print(f"[DONE] 生成 {out_path}，共计 {len(all_channels)} 条频道")
+          EOF
+          python3 generate_FgPlayList.py
+
+      # ── 7️⃣（可选）把单独的 M3U 再生成一次标准形式（保留 YouTube） ──
+      - name: Convert specific M3U files (keep YouTube links)
+        run: |
+          cat > convert.py << 'EOF'
+          import os, re
+          def convert_to_m3u(src, dst):
+              if not os.path.isfile(src):
+                  print(f"[WARN] {src} 不存在，跳过")
+                  return
+              with open(src, 'r', encoding='utf-8') as f:
+                  lines = f.readlines()
+              out = ['#EXTM3U x-tvg-url=""']
+              group = '未分类'
+              cnt = 0
+              for line in lines:
+                  line = line.strip()
+                  if not line:
+                      continue
+                  if ',#genre#' in line:
+                      group = line.replace(',#genre#', '').strip()
+                      continue
+                  for proto in [',http://', ',https://', ',p2p://', ',rtmp://', ',rtsp://']:
+                      if proto in line:
+                          idx = line.find(proto)
+                          name = line[:idx].strip()
+                          url  = line[idx+1:].strip()
+                          name = re.sub(r'\s+', ' ', name)
+                          out.append(f'#EXTINF:-1 group-title="{group}",{name}')
+                          out.append(url)
+                          cnt += 1
+                          break
+              with open(dst, 'w', encoding='utf-8') as f:
+                  f.write('\n'.join(out))
+              print(f"[DONE] {src} → {dst} ({cnt} 条）")
           
-          echo "Downloading $name from $url"
-          
-          if curl -L --fail --max-time 30 -o "$name.tmp" "https://ghfast.top/$url"; then
-            echo "✓ Downloaded $name via ghfast.top"
-          elif curl -L --fail --max-time 30 -o "$name.tmp" "$url"; then
-            echo "✓ Downloaded $name via direct"
+          # 需要转换的文件列表（保持原始文件名，后缀 .m3u）
+          convert_to_m3u("zilongTV", "zilongTV.m3u")
+          convert_to_m3u("海豚无18加555", "haitun.m3u")
+          EOF
+          python3 convert.py
+
+      # ── 8️⃣ 提交并推送修改 ──
+      - name: Commit and push changes
+        run: |
+          git add -A
+          if git diff --staged --quiet; then
+            echo "✅ 没有需要提交的改动"
           else
-            echo "::warning::Failed to download $name, skipping"
-            continue
+            git commit -m "🔄 Sync: Update upstream files & generate FgPlayList.m3u [$(date '+%Y-%m-%d %H:%M')]
+            - 同步所有有效文件
+            - 生成综合 FgPlayList.m3u（兼容 EVILANGEL.m3u 结构）
+            - 保留 YouTube 链接"
+            git push
+            echo "🚀 提交已完成"
           fi
-          
-          if [ -s "$name.tmp" ]; then
-            mv "$name.tmp" "$name"
-            echo "✓ Saved $name ($(wc -l < $name 2>/dev/null || echo '?') lines)"
-          else
-            echo "::warning::$name is empty, removed"
-            rm -f "$name.tmp"
-          fi
-        done
-
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'
-
-    - name: Add external live sources to 海豚影视
-      run: |
-        cat > add_sources.py << 'EOF'
-        import json
-        import sys
-
-        def add_live_sources():
-            try:
-                with open('海豚影视', 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-            except Exception as e:
-                print(f"Error reading 海豚影视: {e}")
-                return False
-
-            new_sources = [
-                {
-                    "name": "🐬海角黄色",
-                    "type": 0,
-                    "ua": "okhttp",
-                    "url": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/fgrjk2/main/haijiao669"
-                },
-                {
-                    "name": "🐬zilong大陆TV",
-                    "type": 0,
-                    "ua": "okhttp",
-                    "url": "https://ghfast.top/https://raw.githubusercontent.com/zilong7728/Collect-IPTV/main/best_sorted.m3u8"
-                }
-            ]
-
-            existing_names = {item.get('name', '') for item in data.get('lives', [])}
-            
-            added_count = 0
-            for source in new_sources:
-                if source['name'] not in existing_names:
-                    data['lives'].append(source)
-                    print(f"✓ Added: {source['name']}")
-                    added_count += 1
-                else:
-                    print(f"⚠️  Already exists: {source['name']}")
-
-            if added_count > 0:
-                with open('海豚影视', 'w', encoding='utf-8') as f:
-                    json.dump(data, f, ensure_ascii=False, indent=4)
-                print(f"✓ Total {added_count} new sources added to 海豚影视")
-                return True
-            else:
-                print("No new sources to add")
-                return False
-
-        if __name__ == "__main__":
-            success = add_live_sources()
-            sys.exit(0 if success else 0)
-        EOF
-        
-        python3 add_sources.py
-
-    - name: Generate comprehensive FgPlayList.m3u
-      run: |
-        cat > generate_FgPlayList.py << 'EOF'
-        import base64
-        import json
-        import re
-        import urllib.parse
-        import os
-
-        def parse_m3u_to_channels(filename, prefix=""):
-            """解析 M3U 文件提取频道"""
-            if not os.path.exists(filename):
-                return []
-            
-            channels = []
-            try:
-                with open(filename, 'r', encoding='utf-8') as f:
-                    lines = f.readlines()
-                
-                for i, line in enumerate(lines):
-                    line = line.strip()
-                    if line.startswith('#EXTINF:-1'):
-                        # 提取频道名
-                        name_match = re.search(r',(.*)$', line)
-                        if name_match:
-                            name = name_match.group(1)
-                            # 查找下一行 URL
-                            next_line_index = i + 1
-                            while next_line_index < len(lines):
-                                next_line = lines[next_line_index].strip()
-                                if next_line and not next_line.startswith('#'):
-                                    if next_line.startswith(('http', 'rtmp', 'rtsp', 'p2p')):
-                                        final_name = f"{prefix} {name}" if prefix else name
-                                        channels.append((final_name, next_line))
-                                    break
-                                next_line_index += 1
-            except Exception as e:
-                print(f"Error parsing {filename}: {e}")
-            
-            return channels
-
-        def parse_vmess_link(link):
-            """解析 vmess 链接"""
-            try:
-                b64_data = link[8:]
-                b64_data += '=' * (4 - len(b64_data) % 4)
-                json_str = base64.b64decode(b64_data).decode('utf-8')
-                data = json.loads(json_str)
-                server = data.get('add', '')
-                port = data.get('port', 443)
-                ps = data.get('ps', 'VMess')
-                return f"{ps} | {server}:{port}"
-            except:
-                return None
-
-        def parse_subscription_file(filename):
-            """解析订阅文件（Base64 或明文）"""
-            if not os.path.exists(filename):
-                return []
-            
-            with open(filename, 'r', encoding='utf-8') as f:
-                content = f.read().strip()
-            
-            # 尝试 Base64 解码
-            try:
-                padding = 4 - len(content) % 4
-                if padding != 4:
-                    content += '=' * padding
-                decoded = base64.b64decode(content).decode('utf-8')
-                lines = [l.strip() for l in decoded.split('\n') if l.strip()]
-            except:
-                lines = [l.strip() for l in content.split('\n') if l.strip()]
-            
-            channels = []
-            for line in lines:
-                if line.startswith('vmess://'):
-                    name = parse_vmess_link(line)
-                    if name:
-                        channels.append((name, line))
-                elif line.startswith(('vless://', 'trojan://', 'ss://')):
-                    # 简化处理，提取域名
-                    try:
-                        if line.startswith('vless://'):
-                            server = line.split('@')[1].split(':')[0]
-                            name = f"VLESS | {server}"
-                        elif line.startswith('trojan://'):
-                            server = line.split('@')[1].split(':')[0]
-                            name = f"Trojan | {server}"
-                        elif line.startswith('ss://'):
-                            name = f"Shadowsocks | {line.split('@')[1].split(':')[0]}"
-                        channels.append((name, line))
-                    except:
-                        continue
-            
-            return channels
-
-        def extract_lives_from_json(filename):
-            """从 JSON 配置中提取 lives 列表"""
-            if not os.path.exists(filename):
-                return []
-            
-            try:
-                with open(filename, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                
-                channels = []
-                for live in data.get('lives', []):
-                    url = live.get('url', '')
-                    name = live.get('name', '')
-                    if url and name:
-                        channels.append((name, url))
-                
-                return channels
-            except Exception as e:
-                print(f"Error extracting lives from {filename}: {e}")
-                return []
-
-        # 收集所有频道
-        all_channels = []
-
-        # 从 M3U 文件解析
-        m3u_files = [
-            ("zilongTV", "🐬"),
-            ("海豚无18加555", "🐬"),
-        ]
-        
-        for file_name, prefix in m3u_files:
-            if os.path.exists(file_name):
-                channels = parse_m3u_to_channels(file_name, prefix)
-                all_channels.extend(channels)
-                print(f"Parsed {len(channels)} channels from {file_name}")
-
-        # 从 JSON 配置提取直播源
-        json_files = ["海豚无18加555", "海豚666"]
-        for file_name in json_files:
-            if os.path.exists(file_name):
-                channels = extract_lives_from_json(file_name)
-                all_channels.extend(channels)
-                print(f"Extracted {len(channels)} live sources from {file_name}")
-
-        # 生成标准 M3U 文件
-        with open('FgPlayList.m3u', 'w', encoding='utf-8') as f:
-            f.write('#EXTM3U\n')
-            f.write('#EXTINF:-1 tvg-name="🐬海豚影视综合",🐬海豚影视综合\n')
-            f.write('http://localhost/placeholder\n')
-            
-            # 写入所有频道
-            for name, url in all_channels:
-                # 清理名称中的特殊字符
-                clean_name = re.sub(r'[|\\/*?:<>"]', '', name)
-                f.write(f'#EXTINF:-1 tvg-name="{clean_name}",{clean_name}\n')
-                f.write(f'{url}\n')
-
-        print(f"✓ Generated FgPlayList.m3u with {len(all_channels)} channels")
-        EOF
-        
-        python3 generate_FgPlayList.py
-
-    - name: Convert specific FgPlayList files to M3U
-      run: |
-        cat > convert.py << 'EOF'
-        import os
-        import re
-
-        def convert_to_m3u(input_file, output_file):
-            """将简易格式转换为标准M3U格式"""
-            if not os.path.exists(input_file):
-                print(f"⚠️  {input_file} not found, skipping")
-                return False
-            
-            try:
-                with open(input_file, 'r', encoding='utf-8') as f:
-                    lines = f.readlines()
-            except UnicodeDecodeError:
-                with open(input_file, 'r', encoding='gbk') as f:
-                    lines = f.readlines()
-            
-            output = ['#EXTM3U x-tvg-url=""']
-            current_group = '未分类'
-            count = 0
-            
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    continue
-                
-                # 检测分组标记 (,#genre#)
-                if ',#genre#' in line:
-                    current_group = line.replace(',#genre#', '').strip()
-                    continue
-                
-                # 处理 "名称,URL" 格式
-                for protocol in [',http://', ',https://', ',p2p://', ',rtmp://', ',rtsp://']:
-                    if protocol in line:
-                        idx = line.find(protocol)
-                        name = line[:idx].strip()
-                        url = line[idx+1:].strip()
-                        
-                        # 清理名称中的多余空格
-                        name = re.sub(r'\s+', ' ', name)
-                        
-                        output.append(f'#EXTINF:-1 group-title="{current_group}",{name}')
-                        output.append(url)
-                        count += 1
-                        break
-            
-            with open(output_file, 'w', encoding='utf-8') as f:
-                f.write('\n'.join(output))
-            
-            print(f"✓ Converted {input_file} -> {output_file} ({count} channels)")
-            return True
-
-        # 转换特定文件
-        convert_to_m3u("zilongTV", "zilongTV.m3u")
-        convert_to_m3u("海豚无18加555", "haitun.m3u")
-        
-        print("✓ 海豚影视, 海豚666 保持原样（TVBox配置）")
-        EOF
-        
-        python3 convert.py
-
-    - name: Commit and push changes
-      run: |
-        git add -A
-        
-        if git diff --staged --quiet; then
-          echo "No changes to commit"
-        else
-          git commit -m "🔄 Sync: Update files and generate FgPlayList.m3u [$(date '+%Y-%m-%d %H:%M')]
-          
-          - 同步所有有效文件
-          - 生成综合 FgPlayList.m3u
-          - 保留YouTube链接"
-          git push
-          echo "✅ Successfully synced all files"
-        fi
