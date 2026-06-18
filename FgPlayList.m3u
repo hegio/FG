@@ -1,6 +1,6 @@
 #EXTM3U
 #EXTINF:-1 tvg-name="🐬海豚影视综合",🐬海豚影视综合
-http://localhost/placeholder
+http://127.0.0.1/placeholder
 #EXTINF:-1 tvg-name="🐬 CCTV1",🐬 CCTV1
 http://112.27.235.94:8000/hls/1/index.m3u8
 #EXTINF:-1 tvg-name="🐬 CCTV2",🐬 CCTV2
@@ -975,50 +975,6 @@ https://live.ottiptv.cc/huya/11602075
 https://live.ottiptv.cc/huya/29465863
 #EXTINF:-1 tvg-name="🐬 鹿鼎记",🐬 鹿鼎记
 https://live.ottiptv.cc/yy/28265277
-#EXTINF:-1 tvg-name="🐬各大源合集 海豚影视交流群 TG：@hshsjk9",🐬各大源合集 海豚影视交流群 TG：@hshsjk9
-https://gh-proxy.org/https://raw.githubusercontent.com/807080747/zv/refs/heads/main/sese.txt
-#EXTINF:-1 tvg-name="🐬综合直播",🐬综合直播
-https://raw.githubusercontent.com/fleung49/star/refs/heads/main/mit
-#EXTINF:-1 tvg-name="🐬电视家",🐬电视家
-https://gh-proxy.org/https://github.com/bang359/dsj/raw/main/dsjcs.txt
-#EXTINF:-1 tvg-name="🐬地方直播",🐬地方直播
-https://ghfast.top/https://raw.githubusercontent.com/develop202/migu_video/refs/heads/main/interface.txt
-#EXTINF:-1 tvg-name="🐬地方直播2",🐬地方直播2
-https://raw.githubusercontent.com/Guovin/iptv-api/gd/output/ipv4/result.m3u
-#EXTINF:-1 tvg-name="🐬北美长城源",🐬北美长城源
-https://ha.msbot.dpdns.org/wall.php
-#EXTINF:-1 tvg-name="🐬港台",🐬港台
-https://feer-cdn-bp.xpnb.qzz.io/xnkl.txt
-#EXTINF:-1 tvg-name="🐬台湾台",🐬台湾台
-https://epg.pw/test_channels_taiwan.m3u
-#EXTINF:-1 tvg-name="🐬体育台",🐬体育台
-http://82.156.243.185:33389/fwc.m3u
-#EXTINF:-1 tvg-name="🐬裤佬TV",🐬裤佬TV
-https://gh-proxy.org/https://raw.githubusercontent.com/Jsnzkpg/Jsnzkpg/Jsnzkpg/Jsnzkpg1.m3u
-#EXTINF:-1 tvg-name="🐬Gather",🐬Gather
-https://iptv.yang-1989.eu.org/m3u/Gather.m3u
-#EXTINF:-1 tvg-name="🐬Mytv",🐬Mytv
-https://cdn.qd.je/live.m3u
-#EXTINF:-1 tvg-name="🐬singtel(梯子)",🐬singtel(梯子)
-http://xtvantsc.xyz/singtel.txt
-#EXTINF:-1 tvg-name="🐬国际源",🐬国际源
-https://raw.githubusercontent.com/xJEYDAin/iptv/main/output/all_merged.m3u
-#EXTINF:-1 tvg-name="🐬黄蚂蚁先锋推流源",🐬黄蚂蚁先锋推流源
-http://ge.html-5.me//ii/黄蚂蚁先锋推流源.txt
-#EXTINF:-1 tvg-name="🐬风云源",🐬风云源
-http://iptv.4666888.xyz/FYTV.txt
-#EXTINF:-1 tvg-name="🐬港奥台国际",🐬港奥台国际
-http://tv123.vvvv.ee/tv.m3u
-#EXTINF:-1 tvg-name="🐬中港台直播源",🐬中港台直播源
-https://t.freetv.fun/m3u/playlist_all.txt
-#EXTINF:-1 tvg-name="🐬4GTV(梯子台湾节点)720p",🐬4GTV(梯子台湾节点)720p
-https://ghfast.top/https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/4gtv.txt
-#EXTINF:-1 tvg-name="🐬4GTV怡淳酒店(梯子台湾节点)720p",🐬4GTV怡淳酒店(梯子台湾节点)720p
-http://xtvantsc.xyz/4gtv.txt
-#EXTINF:-1 tvg-name="🐬4GTV(梯子任何节点)1080p",🐬4GTV(梯子任何节点)1080p
-https://ha.msbot.dpdns.org/4gtv_api.php
-#EXTINF:-1 tvg-name="🐬jackTV(梯子)",🐬jackTV(梯子)
-https://php.946985.filegear-sg.me/jackTV.m3u
 #EXTINF:-1 tvg-name="🐬各大源合集 海豚影视永久免费如有收费的都是骗子",🐬各大源合集 海豚影视永久免费如有收费的都是骗子
 https://gh-proxy.org/https://raw.githubusercontent.com/807080747/zv/refs/heads/main/sese.txt
 #EXTINF:-1 tvg-name="🐬综合直播 海豚影视交流群 TG：@hshsjk9",🐬综合直播 海豚影视交流群 TG：@hshsjk9
@@ -1107,3 +1063,103 @@ https://ghfast.top/https://raw.githubusercontent.com/FGBLH/fgrjk/refs/heads/main
 https://cloud.7so.top/f/RO04U5/%E4%B8%BD%E5%BD%B1%E7%90%BC%E5%A7%BF.m3u
 #EXTINF:-1 tvg-name="🐬日本女优12🔞",🐬日本女优12🔞
 https://ghfast.top/https://raw.githubusercontent.com/FGBLH/fgrjk/refs/heads/main/日本女优12.m3u
+#EXTINF:-1 tvg-name="🐬各大源合集 海豚影视永久免费如有收费的都是骗子",🐬各大源合集 海豚影视永久免费如有收费的都是骗子
+https://gh-proxy.org/https://raw.githubusercontent.com/807080747/zv/refs/heads/main/sese.txt
+#EXTINF:-1 tvg-name="🐬综合直播 海豚影视交流群 TG：@hshsjk9",🐬综合直播 海豚影视交流群 TG：@hshsjk9
+https://raw.githubusercontent.com/fleung49/star/refs/heads/main/mit
+#EXTINF:-1 tvg-name="🐬电视家",🐬电视家
+https://gh-proxy.org/https://github.com/bang359/dsj/raw/main/dsjcs.txt
+#EXTINF:-1 tvg-name="🐬地方直播",🐬地方直播
+https://ghfast.top/https://raw.githubusercontent.com/develop202/migu_video/refs/heads/main/interface.txt
+#EXTINF:-1 tvg-name="🐬地方直播2",🐬地方直播2
+https://raw.githubusercontent.com/Guovin/iptv-api/gd/output/ipv4/result.m3u
+#EXTINF:-1 tvg-name="🐬北美长城源",🐬北美长城源
+https://ha.msbot.dpdns.org/wall.php
+#EXTINF:-1 tvg-name="🐬港台",🐬港台
+https://feer-cdn-bp.xpnb.qzz.io/xnkl.txt
+#EXTINF:-1 tvg-name="🐬台湾台",🐬台湾台
+https://epg.pw/test_channels_taiwan.m3u
+#EXTINF:-1 tvg-name="🐬体育台",🐬体育台
+http://82.156.243.185:33389/fwc.m3u
+#EXTINF:-1 tvg-name="🐬国际TV",🐬国际TV
+https://raw.githubusercontent.com/xJEYDAin/iptv/main/output/all_merged.m3u
+#EXTINF:-1 tvg-name="🐬UnifiTV(马来节点)",🐬UnifiTV(马来节点)
+https://ghfast.top/https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/unifi.txt
+#EXTINF:-1 tvg-name="🐬裤佬TV",🐬裤佬TV
+https://gh-proxy.org/https://raw.githubusercontent.com/Jsnzkpg/Jsnzkpg/Jsnzkpg/Jsnzkpg1.m3u
+#EXTINF:-1 tvg-name="🐬Gather",🐬Gather
+https://iptv.yang-1989.eu.org/m3u/Gather.m3u
+#EXTINF:-1 tvg-name="🐬Mytv",🐬Mytv
+https://cdn.qd.je/live.m3u
+#EXTINF:-1 tvg-name="🐬新加坡(梯子)",🐬新加坡(梯子)
+http://xtvantsc.xyz/新加坡.m3u
+#EXTINF:-1 tvg-name="🐬黄蚂蚁先锋推流源",🐬黄蚂蚁先锋推流源
+http://ge.html-5.me//ii/黄蚂蚁先锋推流源.txt
+#EXTINF:-1 tvg-name="🐬风云源",🐬风云源
+http://iptv.4666888.xyz/FYTV.txt
+#EXTINF:-1 tvg-name="🐬易发源 有🔞",🐬易发源 有🔞
+https://gh-proxy.org/https://raw.githubusercontent.com/fafa002/yf2025/refs/heads/main/yiyifafa.txt
+#EXTINF:-1 tvg-name="🐬俄罗斯源 有🔞",🐬俄罗斯源 有🔞
+https://ilook.epg.one/EDTZN7ANS84N86
+#EXTINF:-1 tvg-name="🐬飞扬源",🐬飞扬源
+https://www.985pan.com/down.php/bf5e9607ff407fcdd71f63928ea5bc79.txt
+#EXTINF:-1 tvg-name="🐬港奥台国际",🐬港奥台国际
+http://tv123.vvvv.ee/tv.m3u
+#EXTINF:-1 tvg-name="🐬中港台直播源",🐬中港台直播源
+https://t.freetv.fun/m3u/playlist_all.txt
+#EXTINF:-1 tvg-name="🐬4GTV(梯子台湾节点)720p",🐬4GTV(梯子台湾节点)720p
+https://ghfast.top/https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/4gtv.txt
+#EXTINF:-1 tvg-name="🐬4GTV怡淳酒店(梯子台湾节点)720p",🐬4GTV怡淳酒店(梯子台湾节点)720p
+http://xtvantsc.xyz/4gtv.txt
+#EXTINF:-1 tvg-name="🐬4GTV(梯子任何节点)1080p",🐬4GTV(梯子任何节点)1080p
+https://ha.msbot.dpdns.org/4gtv_api.php
+#EXTINF:-1 tvg-name="🐬安博(梯子)卡顿 有🔞",🐬安博(梯子)卡顿 有🔞
+https://ghfast.top/https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/安博.txt
+#EXTINF:-1 tvg-name="🐬jackTV(梯子)",🐬jackTV(梯子)
+https://php.946985.filegear-sg.me/jackTV.m3u
+#EXTINF:-1 tvg-name="🐬午夜剧场(梯子)🔞",🐬午夜剧场(梯子)🔞
+https://ghfast.top/https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/午夜剧场.txt
+#EXTINF:-1 tvg-name="🐬海豚佬xxx视频资源🔞",🐬海豚佬xxx视频资源🔞
+https://ghfast.top/https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/xxx视频资源
+#EXTINF:-1 tvg-name="🐬欧美大片直播🔞",🐬欧美大片直播🔞
+http://xtvantsc.xyz/欧美2160.m3u
+#EXTINF:-1 tvg-name="🐬EVILANGEL🔞",🐬EVILANGEL🔞
+https://ghfast.top/https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/EVILANGEL.m3u
+#EXTINF:-1 tvg-name="🐬FC2-PPV1🔞",🐬FC2-PPV1🔞
+https://ghfast.top/https://raw.githubusercontent.com/FGBLH/fgrjk/refs/heads/main/FC2-PPV1.m3u
+#EXTINF:-1 tvg-name="🐬日本女优1🔞",🐬日本女优1🔞
+https://ghfast.top/https://raw.githubusercontent.com/FGBLH/fgrjk/refs/heads/main/日本女优1.m3u
+#EXTINF:-1 tvg-name="🐬日本女优2🔞",🐬日本女优2🔞
+https://ghfast.top/https://raw.githubusercontent.com/FGBLH/fgrjk/refs/heads/main/日本女优2.m3u
+#EXTINF:-1 tvg-name="🐬日本女优3🔞",🐬日本女优3🔞
+https://ghfast.top/https://raw.githubusercontent.com/FGBLH/fgrjk/refs/heads/main/日本女优3.m3u
+#EXTINF:-1 tvg-name="🐬日本女优4🔞",🐬日本女优4🔞
+https://ghfast.top/https://raw.githubusercontent.com/FGBLH/fgrjk/refs/heads/main/日本女优4.m3u
+#EXTINF:-1 tvg-name="🐬日本女优5🔞",🐬日本女优5🔞
+https://ghfast.top/https://raw.githubusercontent.com/FGBLH/fgrjk/refs/heads/main/日本女优5.m3u
+#EXTINF:-1 tvg-name="🐬日本女优6🔞",🐬日本女优6🔞
+https://ghfast.top/https://raw.githubusercontent.com/FGBLH/fgrjk/refs/heads/main/日本女优6.m3u
+#EXTINF:-1 tvg-name="🐬日本女优7🔞",🐬日本女优7🔞
+https://ghfast.top/https://raw.githubusercontent.com/FGBLH/fgrjk/refs/heads/main/日本女优7.m3u
+#EXTINF:-1 tvg-name="🐬日本女优8🔞",🐬日本女优8🔞
+https://ghfast.top/https://raw.githubusercontent.com/FGBLH/fgrjk/refs/heads/main/日本女优8.m3u
+#EXTINF:-1 tvg-name="🐬日本女优9🔞",🐬日本女优9🔞
+https://ghfast.top/https://raw.githubusercontent.com/FGBLH/fgrjk/refs/heads/main/日本女优9.m3u
+#EXTINF:-1 tvg-name="🐬日本女优10🔞",🐬日本女优10🔞
+https://ghfast.top/https://raw.githubusercontent.com/FGBLH/fgrjk/refs/heads/main/日本女优10.m3u
+#EXTINF:-1 tvg-name="🐬日本女优11🔞",🐬日本女优11🔞
+https://cloud.7so.top/f/RO04U5/%E4%B8%BD%E5%BD%B1%E7%90%BC%E5%A7%BF.m3u
+#EXTINF:-1 tvg-name="🐬日本女优12🔞",🐬日本女优12🔞
+https://ghfast.top/https://raw.githubusercontent.com/FGBLH/fgrjk/refs/heads/main/日本女优12.m3u
+#EXTINF:-1 tvg-name="develop202",develop202
+https://gh.927223.xyz/https://raw.githubusercontent.com/develop202/migu_video/refs/heads/main/interface.txt
+#EXTINF:-1 tvg-name="Kimentanm",Kimentanm
+https://gh.927223.xyz/https://raw.githubusercontent.com/Kimentanm/aptv/master/m3u/iptv.m3u
+#EXTINF:-1 tvg-name="虎牙一起看",虎牙一起看
+https://sub.ottiptv.cc/huyayqk.m3u
+#EXTINF:-1 tvg-name="斗鱼一起看",斗鱼一起看
+https://sub.ottiptv.cc/douyuyqk.m3u
+#EXTINF:-1 tvg-name="B站直播",B站直播
+https://sub.ottiptv.cc/bililive.m3u
+#EXTINF:-1 tvg-name="YY轮播",YY轮播
+https://sub.ottiptv.cc/yylunbo.m3u
