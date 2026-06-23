@@ -1,58 +1,34 @@
-import os
-import re
-
-def convert_to_m3u(input_file, output_file):
-    """将简易格式转换为标准M3U格式（保留YouTube链接）"""
-    if not os.path.exists(input_file):
-        print(f"⚠️  {input_file} not found, skipping")
-        return False
-    
-    try:
-        with open(input_file, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
-    except UnicodeDecodeError:
-        with open(input_file, 'r', encoding='gbk') as f:
-            lines = f.readlines()
-    
-    output = ['#EXTM3U x-tvg-url=""']
-    current_group = '未分类'
-    count = 0
-    
+import os, re
+def convert_to_m3u(src, dst):
+    if not os.path.isfile(src):
+        print(f"[WARN] {src} 不存在，跳过")
+        return
+    with open(src, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    out = ['#EXTM3U x-tvg-url=""']
+    group = '未分类'
+    cnt = 0
     for line in lines:
         line = line.strip()
         if not line:
             continue
-        
-        # 检测分组标记 (,#genre#)
         if ',#genre#' in line:
-            current_group = line.replace(',#genre#', '').strip()
+            group = line.replace(',#genre#', '').strip()
             continue
-        
-        # 【重要】取消 YouTube 链接过滤，保留所有链接
-        # 处理 "名称,URL" 格式
-        for protocol in [',http://', ',https://', ',p2p://', ',rtmp://', ',rtsp://']:
-            if protocol in line:
-                idx = line.find(protocol)
+        for proto in [',http://', ',https://', ',p2p://', ',rtmp://', ',rtsp://']:
+            if proto in line:
+                idx = line.find(proto)
                 name = line[:idx].strip()
-                url = line[idx+1:].strip()
-                
-                # 清理名称中的多余空格
+                url  = line[idx+1:].strip()
                 name = re.sub(r'\s+', ' ', name)
-                
-                output.append(f'#EXTINF:-1 group-title="{current_group}",{name}')
-                output.append(url)
-                count += 1
+                out.append(f'#EXTINF:-1 group-title="{group}",{name}')
+                out.append(url)
+                cnt += 1
                 break
-    
-    with open(output_file, 'w', encoding='utf-8') as f:
-        f.write('\n'.join(output))
-    
-    print(f"✓ Converted {input_file} -> {output_file} ({count} channels, 保留YouTube链接)")
-    return True
+    with open(dst, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(out))
+    print(f"[DONE] {src} → {dst} ({cnt} 条）")
 
-# 只转换直播源文件
+# 需要转换的文件列表（保持原始文件名，后缀 .m3u）
 convert_to_m3u("zilongTV", "zilongTV.m3u")
-convert_to_m3u("海豚影视无18加", "haitun.m3u")
-
-# TVBox配置文件保持原样，不转换
-print("✓ 海豚影视.json 和 锋哥影视json 保持原样（TVBox配置）")
+convert_to_m3u("海豚无18加555", "haitun.m3u")
