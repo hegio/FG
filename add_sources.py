@@ -1,13 +1,15 @@
-import json, sys
+import json
+import sys
 
 def add_live_sources():
     try:
-        with open('海豚影视', 'r', encoding='utf-8') as f:
+        with open('海豚影视.json', 'r', encoding='utf-8') as f:
             data = json.load(f)
     except Exception as e:
-        print(f"[ERROR] 读取 海豚影视 失败: {e}")
+        print(f"Error reading 海豚影视.json: {e}")
         return False
 
+    # 定义要添加的外部直播源（格式：名称, URL）
     new_sources = [
         {
             "name": "🐬海角黄色",
@@ -23,22 +25,28 @@ def add_live_sources():
         }
     ]
 
-    existed = {i.get('name', '') for i in data.get('lives', [])}
-    added = 0
-    for src in new_sources:
-        if src['name'] not in existed:
-            data.setdefault('lives', []).append(src)
-            print(f"[INFO] Added {src['name']}")
-            added += 1
+    # 获取现有名称列表，避免重复添加
+    existing_names = {item.get('name', '') for item in data.get('lives', [])}
+    
+    added_count = 0
+    for source in new_sources:
+        if source['name'] not in existing_names:
+            data['lives'].append(source)
+            print(f"✓ Added: {source['name']}")
+            added_count += 1
         else:
-            print(f"[WARN] 已存在 {src['name']}")
+            print(f"⚠️  Already exists: {source['name']}")
 
-    if added:
+    if added_count > 0:
+        # 保存回文件（保持格式美观）
         with open('海豚影视', 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
-        print(f"[INFO] 共新增 {added} 条直播源")
+        print(f"✓ Total {added_count} new sources added to 海豚影视.json")
         return True
-    return False
+    else:
+        print("No new sources to add")
+        return False
 
-if __name__ == '__main__':
-    sys.exit(0 if add_live_sources() else 0)
+if __name__ == "__main__":
+    success = add_live_sources()
+    sys.exit(0 if success else 0)  # 即使没新增也不报错
