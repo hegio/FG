@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 import os, json, base64, re, urllib.parse
 
-# --------------------------------------------------------------
-# 1️⃣ 解析普通 M3U（如 zilongTV、海豚无18加555）
-# --------------------------------------------------------------
 def parse_m3u(file_path, prefix=""):
     if not os.path.isfile(file_path):
         return []
@@ -28,9 +25,6 @@ def parse_m3u(file_path, prefix=""):
         i += 1
     return channels
 
-# --------------------------------------------------------------
-# 2️⃣ 解析 GHK / 鱼壳海豚 JSON（结构统一为 {"lives":[{...}]})
-# --------------------------------------------------------------
 def extract_from_json(file_path):
     if not os.path.isfile(file_path):
         return []
@@ -45,9 +39,6 @@ def extract_from_json(file_path):
             result.append((name, url))
     return result
 
-# --------------------------------------------------------------
-# 3️⃣ 收集全部频道
-# --------------------------------------------------------------
 all_channels = []
 
 # M3U 文件
@@ -61,17 +52,15 @@ for fname, prefix in m3u_sources:
         all_channels.extend(ch)
         print(f"[INFO] {fname}: 解析到 {len(ch)} 条频道")
 
-# JSON（海豚666、鱼壳海豚、鱼壳海豚_修正）
-json_sources = ["海豚666", "鱼壳海豚", "鱼壳海豚_修正"]
+# JSON（所有三个版本）
+json_sources = ["海豚666", "鱼壳海豚", "鱼壳海豚_local", "鱼壳海豚_gb"]
 for fname in json_sources:
     if os.path.isfile(fname):
         ch = extract_from_json(fname)
         all_channels.extend(ch)
         print(f"[INFO] {fname}: 解析到 {len(ch)} 条直播源")
 
-# --------------------------------------------------------------
-# 4️⃣ 写入符合 EVILANGEL.m3u 格式的文件
-# --------------------------------------------------------------
+# 生成 FgPlayList.m3u
 out_path = "FgPlayList.m3u"
 with open(out_path, "w", encoding="utf-8") as out:
     out.write("#EXTM3U\n")
