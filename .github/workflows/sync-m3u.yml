@@ -152,7 +152,7 @@ jobs:
       run: |
         cat > generate_gb.py << 'EOF'
         import json
-                import os   # ← 新增这一行
+        import os   # ← 新增这一行
 
         src = "鱼壳海豚"
         dst = "鱼壳海豚_gb.json"
