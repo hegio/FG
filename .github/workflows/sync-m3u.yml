@@ -25,6 +25,7 @@ jobs:
 
     - name: Download all upstream files
       run: |
+        set -euo pipefail   # ← 新增这一行，提升脚本健壮性
         files=(
           "zilongTV:https://raw.githubusercontent.com/zilong7728/Collect-IPTV/refs/heads/main/best_sorted.m3u8"
           "海豚无18加555:https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/%E6%B5%B7%E8%B1%9A%E6%97%A018%E5%8A%A0555.json"
@@ -57,21 +58,26 @@ jobs:
         done
 
     - name: Setup Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.x'
 
     - name: Add external live sources to 海豚影视
       run: |
         cat > add_sources.py << 'EOF'
-        import json, sys
+        import json, sys, os
 
         def add_live_sources():
+            src_file = '海豚影视'
+            if not os.path.isfile(src_file):
+                print(f"[WARN] {src_file} 不存在，跳过添加直播源")
+                return False
+
             try:
-                with open('海豚影视', 'r', encoding='utf-8') as f:
+                with open(src_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
             except Exception as e:
-                print(f"[ERROR] 读取 海豚影视 失败: {e}")
+                print(f"[ERROR] 读取 {src_file} 失败: {e}")
                 return False
 
             new_sources = [
@@ -88,7 +94,7 @@ jobs:
                     "url": "https://ghfast.top/https://raw.githubusercontent.com/zilong7728/Collect-IPTV/main/best_sorted.m3u8"
                 }
             ]
-
+    
             existed = {i.get('name', '') for i in data.get('lives', [])}
             added = 0
             for src in new_sources:
@@ -100,7 +106,7 @@ jobs:
                     print(f"[WARN] 已存在 {src['name']}")
 
             if added:
-                with open('海豚影视', 'w', encoding='utf-8') as f:
+                with open(src_file, 'w', encoding='utf-8') as f:
                     json.dump(data, f, ensure_ascii=False, indent=4)
                 print(f"[INFO] 共新增 {added} 条直播源")
                 return True
@@ -116,6 +122,7 @@ jobs:
       run: |
         cat > generate_local.py << 'EOF'
         import json
+        import os   # ← 新增这一行
 
         src = "鱼壳海豚"
         dst = "鱼壳海豚_local.json"
@@ -145,6 +152,7 @@ jobs:
       run: |
         cat > generate_gb.py << 'EOF'
         import json
+                import os   # ← 新增这一行
 
         src = "鱼壳海豚"
         dst = "鱼壳海豚_gb.json"
