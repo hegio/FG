@@ -9,6 +9,7 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     env:
+      # 抑制 Node.js 警告
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
@@ -110,67 +111,72 @@ jobs:
         EOF
         python3 add_sources.py
 
-    - name: Fix 鱼壳海豚.json header
+    # ── 6️⃣ 生成鱼壳海豚_local.json（本地 spider.jar 挂载） ──
+    - name: Generate 鱼壳海豚_local.json
       run: |
-        cat > fix_header.py << 'EOF'
-        import json, os
+        cat > generate_local.py << 'EOF'
+        import json
 
         src = "鱼壳海豚"
-        dst = "鱼壳海豚_修正.json"
+        dst = "鱼壳海豚_local.json"
 
         if not os.path.isfile(src):
-            print(f"[WARN] {src} 不存在，跳过修正")
+            print(f"[WARN] {src} 不存在，跳过生成 local 版本")
             exit(0)
 
         with open(src, 'r', encoding='utf-8') as f:
             data = json.load(f)
 
-        # 修正头部配置（参考海豚666.json）
-        data["spider"] = "./tvbox.jar"
+        # 设置本地 spider.jar 路径
+        data["spider"] = "/storage/emulated/0/TvBox/spider.jar"
         data["wallpaper"] = "http://tool.teyonds.com/api"
         data["logo"] = "https://img.freepik.com/free-vector/cute-dolphin-swimming-cartoon-vector-icon-illustration-animal-nature-icon-isolated-flat-vector_138676-12582.jpg?semt=ais_hybrid&w=740&q=80"
 
         with open(dst, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
 
-        print(f"[DONE] 已生成 {dst}，头部配置已修正")
+        print(f"[DONE] 已生成 {dst}（本地挂载）")
+        print(f"[INFO] spider 路径: /storage/emulated/0/TvBox/spider.jar")
         EOF
-        python3 fix_header.py
+        python3 generate_local.py
 
-    # ── 7️⃣ 设置固定的 spider.jar 路径 ──
-    - name: Set fixed spider.jar path
+    # ── 7️⃣ 生成鱼壳海豚_gb.json（GitHub spider.jar 挂载） ──
+    - name: Generate 鱼壳海豚_gb.json
       run: |
-        cat > set_spider_path.py << 'EOF'
+        cat > generate_gb.py << 'EOF'
         import json
 
-        # 固定的 spider.jar 路径
-        SPIDER_PATH = "/storage/emulated/0/TvBox/spider.jar"
+        src = "鱼壳海豚"
+        dst = "鱼壳海豚_gb.json"
 
-        # 读取修正后的文件
-        with open('鱼壳海豚_修正.json', 'r', encoding='utf-8') as f:
+        if not os.path.isfile(src):
+            print(f"[WARN] {src} 不存在，跳过生成 GB 版本")
+            exit(0)
+
+        with open(src, 'r', encoding='utf-8') as f:
             data = json.load(f)
 
-        # 设置 spider 路径
-        data["spider"] = SPIDER_PATH
+        # 设置 GitHub 托管的 spider.jar 路径
+        # 使用 ghfast.top 加速访问
+        data["spider"] = "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/spider.jar"
+        data["wallpaper"] = "http://tool.teyonds.com/api"
+        data["logo"] = "https://img.freepik.com/free-vector/cute-dolphin-swimming-cartoon-vector-icon-illustration-animal-nature-icon-isolated-flat-vector_138676-12582.jpg?semt=ais_hybrid&w=740&q=80"
 
-        # 保存
-        with open('鱼壳海豚_修正.json', 'w', encoding='utf-8') as f:
+        with open(dst, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
 
-        print(f"[DONE] 已设置 spider 路径为: {SPIDER_PATH}")
-        print(f"[INFO] 请确保将 spider.jar 文件放在该目录下")
+        print(f"[DONE] 已生成 {dst}（GitHub 挂载）")
+        print(f"[INFO] spider URL: https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/spider.jar")
         EOF
-        python3 set_spider_path.py
+        python3 generate_gb.py
 
+    # ── 8️⃣ 生成综合 FgPlayList.m3u ──
     - name: Generate comprehensive FgPlayList.m3u
       run: |
         cat > generate_FgPlayList.py << 'EOF'
         #!/usr/bin/env python3
         import os, json, base64, re, urllib.parse
 
-        # --------------------------------------------------------------
-        # 1️⃣ 解析普通 M3U（如 zilongTV、海豚无18加555）
-        # --------------------------------------------------------------
         def parse_m3u(file_path, prefix=""):
             if not os.path.isfile(file_path):
                 return []
@@ -195,9 +201,6 @@ jobs:
                 i += 1
             return channels
 
-        # --------------------------------------------------------------
-        # 2️⃣ 解析 GHK / 鱼壳海豚 JSON（结构统一为 {"lives":[{...}]})
-        # --------------------------------------------------------------
         def extract_from_json(file_path):
             if not os.path.isfile(file_path):
                 return []
@@ -212,9 +215,6 @@ jobs:
                     result.append((name, url))
             return result
 
-        # --------------------------------------------------------------
-        # 3️⃣ 收集全部频道
-        # --------------------------------------------------------------
         all_channels = []
 
         # M3U 文件
@@ -228,17 +228,15 @@ jobs:
                 all_channels.extend(ch)
                 print(f"[INFO] {fname}: 解析到 {len(ch)} 条频道")
 
-        # JSON（海豚666、鱼壳海豚、鱼壳海豚_修正）
-        json_sources = ["海豚666", "鱼壳海豚", "鱼壳海豚_修正"]
+        # JSON（所有三个版本）
+        json_sources = ["海豚666", "鱼壳海豚", "鱼壳海豚_local", "鱼壳海豚_gb"]
         for fname in json_sources:
             if os.path.isfile(fname):
                 ch = extract_from_json(fname)
                 all_channels.extend(ch)
                 print(f"[INFO] {fname}: 解析到 {len(ch)} 条直播源")
 
-        # --------------------------------------------------------------
-        # 4️⃣ 写入符合 EVILANGEL.m3u 格式的文件
-        # --------------------------------------------------------------
+        # 生成 FgPlayList.m3u
         out_path = "FgPlayList.m3u"
         with open(out_path, "w", encoding="utf-8") as out:
             out.write("#EXTM3U\n")
@@ -299,11 +297,11 @@ jobs:
         if git diff --staged --quiet; then
           echo "✅ 没有需要提交的改动"
         else
-          git commit -m "🔄 Sync: Update upstream files & generate FgPlayList.m3u [$(date '+%Y-%m-%d %H:%M')]
-          - 同步所有有效文件
-          - 生成综合 FgPlayList.m3u（兼容 EVILANGEL.m3u 结构）
-          - 修正鱼壳海豚.json 头部配置
-          - 保留 YouTube 链接"
+          git commit -m "🔄 Sync: Generate local and GB versions [$(date '+%Y-%m-%d %H:%M')]
+          - 同步所有上游文件
+          - 生成鱼壳海豚_local.json（本地 spider.jar）
+          - 生成鱼壳海豚_gb.json（GitHub spider.jar）
+          - 生成综合 FgPlayList.m3u"
           git push
           echo "🚀 提交已完成"
         fi
