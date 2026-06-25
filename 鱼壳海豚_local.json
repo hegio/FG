@@ -1,5 +1,5 @@
 {
-    "spider": "/storage/emulated/0/TvBox/spider.jar",
+    "spider": "/data/data/com.termux/files/home/spider.jar",
     "wallpaper": "http://tool.teyonds.com/api",
     "logo": "https://img.freepik.com/free-vector/cute-dolphin-swimming-cartoon-vector-icon-illustration-animal-nature-icon-isolated-flat-vector_138676-12582.jpg?semt=ais_hybrid&w=740&q=80",
     "sites": [
