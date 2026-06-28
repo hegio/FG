@@ -31,6 +31,7 @@ jobs:
           "海豚无18加555:https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/%E6%B5%B7%E8%B1%9A%E6%97%A018%E5%8A%A0555.json"
           "海豚666:https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/%E6%B5%B7%E8%B1%9A666.json"
           "鱼壳海豚:https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/%E9%B1%BC%E5%A3%B3%E6%B5%B7%E8%B1%9A.json"
+          "鱼壳海豚无18加:https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/%E9%B1%BC%E5%A3%B3%E6%B5%B7%E8%B1%9A%E6%97%A018%E5%8A%A0.json"
         )
         
         for item in "${files[@]}"; do
@@ -238,7 +239,7 @@ jobs:
                 print(f"[INFO] {fname}: 解析到 {len(ch)} 条频道")
 
         # JSON（所有三个版本）
-        json_sources = ["海豚666", "鱼壳海豚", "鱼壳海豚_local", "鱼壳海豚_gb"]
+        json_sources = ["海豚666", "鱼壳海豚", "鱼壳海豚无18加","鱼壳海豚_local", "鱼壳海豚_gb"]
         for fname in json_sources:
             if os.path.isfile(fname):
                 ch = extract_from_json(fname)
