@@ -62,6 +62,12 @@
             "ext": "https://ghfast.top/https://raw.githubusercontent.com/IY-CPU/IY/main/lib/茫茫.png"
         },
         {
+            "key": "fY",
+            "name": "🐬枫叶影院.py(关梯子使用)",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/py/枫叶影院.py"
+        },
+        {
             "key": "FY",
             "name": "🐬枫叶影院(关梯子使用)",
             "type": 3,
@@ -509,6 +515,18 @@
             "name": "🐬网易云1｜音乐",
             "type": 3,
             "api": "https://xn--fjq53n.xyz/Ting/yinyue/网易云音乐1.py"
+        },
+        {
+            "key": "007qg",
+            "name": "🐬007吃瓜.py｜🔞",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/py/007吃瓜.py"
+        },
+        {
+            "key": "51qg",
+            "name": "🐬51吃瓜.py｜🔞",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/py/51吃瓜.py"
         },
         {
             "key": "slyzy",
@@ -2515,6 +2533,39 @@
                 ],
                 "titleMappingsUrl": "https://ghfast.top/https://raw.githubusercontent.com/goodcommunication/mydm/main/yins.json",
                 "filter": "./lib/douban.json"
+            }
+        },
+        {
+            "key": "leo_danmaku",
+            "name": "LEO | 弹幕",
+            "type": 3,
+            "api": "csp_DanmakuSpider",
+            "searchable": 1,
+            "changeable": 0,
+            "index": 1,
+            "jar": "https://gh-proxy.org/https://github.com/Silent1566/CatVodSpider/raw/refs/heads/main/jar/danmu.jar",
+            "ext": {
+                "apiUrls": [
+                    "https://dm.abai.ccwu.cc/abai|LogVar",
+                    "https://dmk.abai.ccwu.cc/api/v1/abaibai|御坂",
+                    "https://dm.660505.xyz:8443/a123456|W佬",
+                    "https://danmaku.banye.tech:17777/87654321",
+                    "https://danmu.qianting168.com/456765847636987622146901",
+                    "https://logvar-danmu.rinrin.top/87654321",
+                    "https://dm.abai.ccwu.cc/abai",
+                    "https://88920.dpdns.org",
+                    "https://logvar-danmu.rinrin.top",
+                    "https://danm.lubao2.de5.net/87654321",
+                    "https://danmu.lily.lat/lilyemby|Lily"
+                ],
+                "autoPushEnabled": true,
+                "silentMode": true,
+                "danmakuStyle": "经典模式",
+                "proxyPort": 5575,
+                "lpAlpha": 0.9,
+                "lpWidth": 0.9,
+                "lpHeight": 0.85,
+                "titleMappingsUrl": "https://gh-proxy.com/https://raw.githubusercontent.com/goodcommunication/mydm/main/yins.json"
             }
         },
         {
