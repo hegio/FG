@@ -16,7 +16,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract lives URLs
+      - name: Extract lives URLs with names
         run: |
           SOURCE_FILE="鱼壳海豚无18加"
           OUTPUT_FILE="Lv/lives.txt"
@@ -24,7 +24,7 @@ jobs:
           # Ensure output directory exists
           mkdir -p Lv
           
-          # Extract URLs from lives array using Python
+          # Extract URLs and names from lives array using Python
           python3 << 'EOF'
           import json
           import re
@@ -44,17 +44,15 @@ jobs:
               lives_json = re.sub(r',\s*]', ']', lives_json)
               lives = json.loads(lives_json)
               
-              urls = []
-              for item in lives:
-                  if isinstance(item, dict) and "url" in item:
-                      url = item["url"]
-                      urls.append(url)
-              
               with open("${{ env.OUTPUT_FILE }}", "w", encoding="utf-8") as out:
-                  for url in urls:
-                      out.write(url + "\n")
+                  for item in lives:
+                      if isinstance(item, dict) and "url" in item:
+                          name = item.get("name", "Unknown")
+                          url = item["url"]
+                          # Write as: name,url format
+                          out.write(f"{name},{url}\n")
               
-              print(f"Extracted {len(urls)} URLs to ${{ env.OUTPUT_FILE }}")
+              print(f"Extracted {len(lives)} entries to ${{ env.OUTPUT_FILE }}")
           else:
               print("Could not find lives array")
               exit(1)
