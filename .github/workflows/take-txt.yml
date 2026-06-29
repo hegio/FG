@@ -1,103 +1,76 @@
-name: take txt
+name: Take Lives URLs
 
 on:
   push:
-    branches:
-      - main
     paths:
       - '鱼壳海豚无18加'
   workflow_dispatch:
 
-jobs:
-  extract-urls:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+permissions:
+  contents: write
 
+jobs:
+  extract-lives:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run extraction script
+      - name: Extract lives URLs
         run: |
-          cat << 'EOF' > extract.py
+          SOURCE_FILE="鱼壳海豚无18加"
+          OUTPUT_FILE="Lv/lives.txt"
+          
+          # Ensure output directory exists
+          mkdir -p Lv
+          
+          # Extract URLs from lives array using Python
+          python3 << 'EOF'
           import json
           import re
-          import os
-
-          def clean_json(text):
-              # 去除单行注释 (// ...)
-              text = re.sub(r'//.*', '', text)
-              # 去除多行注释 (/* ... */)
-              text = re.sub(r'/\*.*?\*/', '', text, flags=re.DOTALL)
-              return text
-
-          def extract_lives_block(text):
-              # 匹配 "lives": [, 'lives': [, 或是没有引号的 lives: [
-              match = re.search(r'(?:["\']?lives["\']?)\s*:\s*\[', text)
-              if not match:
-                  return None
-              start_index = match.end()
-              bracket_count = 1
-              end_index = start_index
-              for i in range(start_index, len(text)):
-                  if text[i] == '[':
-                      bracket_count += 1
-                  elif text[i] == ']':
-                      bracket_count -= 1
-                      if bracket_count == 0:
-                          end_index = i
-                          break
-              return text[start_index:end_index]
-
-          # 读取文件
-          try:
-              with open('鱼壳海豚无18加', 'r', encoding='utf-8') as f:
-                  content = f.read()
-          except FileNotFoundError:
-              print("Error: File '鱼壳海豚无18加' not found.")
+          
+          with open("${{ env.SOURCE_FILE }}", "r", encoding="utf-8") as f:
+              content = f.read()
+          
+          # Find the lives array
+          lives_match = re.search(r'"lives"\s*:\s*(\[.*?\])(?=\s*,\s*"parses")', content, re.DOTALL)
+          if not lives_match:
+              # Fallback: try to find lives array with a simpler pattern
+              lives_match = re.search(r'"lives"\s*:\s*(\[.*?\])', content, re.DOTALL)
+          
+          if lives_match:
+              lives_json = lives_match.group(1)
+              # Fix any trailing commas before parsing
+              lives_json = re.sub(r',\s*]', ']', lives_json)
+              lives = json.loads(lives_json)
+              
+              urls = []
+              for item in lives:
+                  if isinstance(item, dict) and "url" in item:
+                      url = item["url"]
+                      urls.append(url)
+              
+              with open("${{ env.OUTPUT_FILE }}", "w", encoding="utf-8") as out:
+                  for url in urls:
+                      out.write(url + "\n")
+              
+              print(f"Extracted {len(urls)} URLs to ${{ env.OUTPUT_FILE }}")
+          else:
+              print("Could not find lives array")
               exit(1)
-
-          cleaned = clean_json(content)
-          urls_to_write = []
-
-          # 方法 1: 尝试使用标准 JSON 解析
-          try:
-              data = json.loads(cleaned)
-              lives = data.get("lives", [])
-              if isinstance(lives, list):
-                  for item in lives:
-                      if isinstance(item, dict) and "url" in item:
-                          urls_to_write.append(item["url"])
-          except Exception as e:
-              print(f"Standard JSON parsing failed ({e}). Trying fallback bracket-matching regex parser...")
-
-          # 方法 2: 如果标准解析失败或未提取到 URL，使用备用正则解析器
-          if not urls_to_write:
-              lives_block = extract_lives_block(cleaned)
-              if lives_block:
-                  # 匹配 key 为 url 且提取其值
-                  urls_to_write = re.findall(r'(?:["\']?url["\']?)\s*:\s*["\']([^"\']+)["\']', lives_block)
-
-          # 创建 Lv 目录并写入结果
-          os.makedirs('Lv', exist_ok=True)
-          with open('Lv/lives.txt', 'w', encoding='utf-8') as f:
-              for url in urls_to_write:
-                  f.write(url + '\n')
-
-          print(f"Successfully extracted {len(urls_to_write)} URLs and saved to Lv/lives.txt")
           EOF
-          python3 extract.py
-          rm extract.py
+        env:
+          SOURCE_FILE: "鱼壳海豚无18加"
+          OUTPUT_FILE: "Lv/lives.txt"
 
       - name: Commit and push changes
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add Lv/lives.txt
-          if git diff --staged --quiet; then
-            echo "No changes in lives.txt"
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
           else
-            git commit -m "Auto-update lives.txt [skip ci]"
+            git commit -m "Update lives.txt from 鱼壳海豚无18加"
             git push
           fi
