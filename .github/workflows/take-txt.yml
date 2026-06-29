@@ -3,7 +3,7 @@ name: Take Lives URLs
 on:
   push:
     paths:
-      - '鱼壳海豚无18加'
+      - '鱼壳海豚'
   workflow_dispatch:
 
 permissions:
@@ -18,7 +18,7 @@ jobs:
 
       - name: Extract lives URLs with names
         run: |
-          SOURCE_FILE="鱼壳海豚无18加"
+          SOURCE_FILE="鱼壳海豚"
           OUTPUT_FILE="Lv/lives.txt"
           
           # Ensure output directory exists
@@ -58,7 +58,7 @@ jobs:
               exit(1)
           EOF
         env:
-          SOURCE_FILE: "鱼壳海豚无18加"
+          SOURCE_FILE: "鱼壳海豚"
           OUTPUT_FILE: "Lv/lives.txt"
 
       - name: Commit and push changes
@@ -69,6 +69,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Update lives.txt from 鱼壳海豚无18加"
+            git commit -m "Update lives.txt from 鱼壳海豚"
             git push
           fi
