@@ -210,140 +210,105 @@ jobs:
                           'url': url
                       })
                   elif line.startswith('http'):
-n                      # 只有URL，尝试从URL推断名称
-n                      url = line.strip()
-n                      if not url.endswith('.mp4'):
-n                          name = os.path.basename(url).split('.')[0] or "Unknown"
-n                          category = detect_category(name, None)
-n                          channels.append({
-n                              'name': name,
-n                              'tvg_name': name,
-n                              'group_title': category,
-n                              'category': category,
-n                              'url': url
-n                          })
-n              return channels
-n
-n          def main():
-n              if not os.path.exists(LIVES_FILE):
-n                  print(f"Error: {LIVES_FILE} not found")
-n                  return
-n              
-n              # 读取lives.txt中的所有链接
-n              with open(LIVES_FILE, 'r', encoding='utf-8') as f:
-n                  urls = [line.strip() for line in f if line.strip() and not line.strip().startswith('#')]
-n              
-n              # 只保留 .txt 后缀的链接
-n              txt_urls = [url for url in urls if url.lower().endswith('.txt')]
-n              print(f"Processing {len(txt_urls)} .txt sources...")
-n              
-n              all_channels = []
-n              
-n              for url in txt_urls:
-n                  print(f"Processing: {url}")
-n                  content = fetch_url(url)
-n                  if not content:
-n                      continue
-n                  
-n                  # 判断内容类型并解析
-n                  if content.strip().startswith('#EXTM3U'):
-n                      channels = parse_m3u_content(content)
-n                  else:
-n                      channels = parse_txt_content(content)
-n                  
-n                  print(f"  Found {len(channels)} channels")
-n                  all_channels.extend(channels)
-n              
-n              # 去重：按URL去重，保留第一个
-n              seen_urls = set()
-n              unique_channels = []
-n              for ch in all_channels:
-n                  # 规范化URL用于去重
-n                  norm_url = ch['url'].split('$')[0].strip()
-n                  if norm_url not in seen_urls and len(norm_url) > 10:
-n                      seen_urls.add(norm_url)
-n                      unique_channels.append(ch)
-n              
-n              # 按分类排序
-n              category_order = [cat for cat, _ in CATEGORY_RULES]
-n              
-n              def sort_key(ch):
-n                  cat_idx = category_order.index(ch['category']) if ch['category'] in category_order else 999
-n                  return (cat_idx, ch['name'])
-n              
-n              unique_channels.sort(key=sort_key)
-n              
-n              # 生成M3U文件
-n              with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
-n                  f.write('#EXTM3U\n')
-n                  
-n                  current_category = None
-n                  for ch in unique_channels:
-n                      # 分类变化时添加注释分隔
-n                      if ch['category'] != current_category:
-n                          current_category = ch['category']
-n                          f.write(f'\n#EXTGRP:{current_category}\n')
-n                      
-n                      group = ch['group_title'] or current_category
-n                      # 清理名称用于显示
-n                      display_name = ch['name'].replace(',', ' ').strip()
-n                      f.write(f'#EXTINF:-1 tvg-name="{ch["tvg_name"]}" group-title="{group}",{display_name}\n')
-n                      f.write(f'{ch["url"]}\n')
-n              
-n              print(f"\nGenerated {OUTPUT_FILE} with {len(unique_channels)} unique channels")
-n              # 统计各分类数量
-n              cat_counts = Counter(ch['category'] for ch in unique_channels)
-n              for cat in category_order:
-n                  if cat in cat_counts:
-n                      print(f"  {cat}: {cat_counts[cat]}")
-n
-n          if __name__ == '__main__':
-n              main()
-n          PYEOF
-n
-n      - name: Commit and push changes
-n        run: |
-n          git config user.name "github-actions[bot]"
-n          git config user.email "github-actions[bot]@users.noreply.github.com"
-n          git add "鱼豚无18.m3u"
-n          if git diff --cached --quiet; then
-n            echo "No changes to commit"
-n          else
-n            git commit -m "Update 鱼豚无18.m3u from txt sources - $(date -u +%Y-%m-%d_%H:%M:%S)"
-n            git push
-n          fi
-n```
+                      # 只有URL，尝试从URL推断名称
+                      url = line.strip()
+                      if not url.endswith('.mp4'):
+                          name = os.path.basename(url).split('.')[0] or "Unknown"
+                          category = detect_category(name, None)
+                          channels.append({
+                              'name': name,
+                              'tvg_name': name,
+                              'group_title': category,
+                              'category': category,
+                              'url': url
+                          })
+              return channels
 
-n**主要修改点：**
-n
-n1. **只处理 .txt 后缀链接**：通过 `txt_urls = [url for url in urls if url.lower().endswith('.txt')]` 过滤
-n
-n2. **智能分类系统**：
-n   - **4K/8K**：优先匹配4K、8K、UHD等超高清频道
-n   - **央视**：CCTV系列、中央电视台
-n   - **卫视**：各省级卫视
-n   - **地方**：地方台、城市台
-n   - **港澳台**：香港、澳门、台湾频道
-n   - **体育**：体育频道、赛事、直播平台
-n   - **电影**：电影频道、HBO、CHC等
-n   - **电视剧**：剧场、剧集频道
-n   - **动漫**：动画、卡通、少儿频道
-n   - **综艺**：综艺、娱乐、音乐频道
-n   - **新闻**：新闻、财经、资讯频道
-n   - **纪录**：纪录片、探索、国家地理
-n   - **音乐**：音乐频道、MTV
-n   - **国际**：国际频道、海外台
-n   - **短剧**：短剧、短视频平台
-n   - **其他**：未分类频道
-n
-n3. **支持两种格式**：
-n   - **M3U格式**：`#EXTM3U` 开头的标准格式，提取 `group-title` 和 `tvg-name`
-n   - **TXT格式**：`频道名,http://...` 格式，支持 `#genre#` 分类标记
-n
-n4. **过滤机制**：自动过滤 `.mp4` 文件、打赏链接、安装教程等非直播链接
-n
-n5. **去重优化**：按URL去重，去掉 `$` 后的线路标记进行规范化比较
-n
-n6. **输出格式**：标准M3U格式，按分类分组，添加 `#EXTGRP` 注释便于阅读
-n
-n保存为 `.github/workflows/build_m3u_txt.yml` 即可。
+          def main():
+              if not os.path.exists(LIVES_FILE):
+                  print(f"Error: {LIVES_FILE} not found")
+                  return
+              
+              # 读取lives.txt中的所有链接
+              with open(LIVES_FILE, 'r', encoding='utf-8') as f:
+                  urls = [line.strip() for line in f if line.strip() and not line.strip().startswith('#')]
+              
+              # 只保留 .txt 后缀的链接
+              txt_urls = [url for url in urls if url.lower().endswith('.txt')]
+              print(f"Processing {len(txt_urls)} .txt sources...")
+              
+              all_channels = []
+              
+              for url in txt_urls:
+                  print(f"Processing: {url}")
+                  content = fetch_url(url)
+                  if not content:
+                      continue
+                  
+                  # 判断内容类型并解析
+                  if content.strip().startswith('#EXTM3U'):
+                      channels = parse_m3u_content(content)
+                  else:
+                      channels = parse_txt_content(content)
+                  
+                  print(f"  Found {len(channels)} channels")
+                  all_channels.extend(channels)
+              
+              # 去重：按URL去重，保留第一个
+              seen_urls = set()
+              unique_channels = []
+              for ch in all_channels:
+                  # 规范化URL用于去重
+                  norm_url = ch['url'].split('$')[0].strip()
+                  if norm_url not in seen_urls and len(norm_url) > 10:
+                      seen_urls.add(norm_url)
+                      unique_channels.append(ch)
+              
+              # 按分类排序
+              category_order = [cat for cat, _ in CATEGORY_RULES]
+              
+              def sort_key(ch):
+                  cat_idx = category_order.index(ch['category']) if ch['category'] in category_order else 999
+                  return (cat_idx, ch['name'])
+              
+              unique_channels.sort(key=sort_key)
+              
+              # 生成M3U文件
+              with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
+                  f.write('#EXTM3U\n')
+                  
+                  current_category = None
+                  for ch in unique_channels:
+                      # 分类变化时添加注释分隔
+                      if ch['category'] != current_category:
+                          current_category = ch['category']
+                          f.write(f'\n#EXTGRP:{current_category}\n')
+                      
+                      group = ch['group_title'] or current_category
+                      # 清理名称用于显示
+                      display_name = ch['name'].replace(',', ' ').strip()
+                      f.write(f'#EXTINF:-1 tvg-name="{ch["tvg_name"]}" group-title="{group}",{display_name}\n')
+                      f.write(f'{ch["url"]}\n')
+              
+              print(f"\nGenerated {OUTPUT_FILE} with {len(unique_channels)} unique channels")
+              # 统计各分类数量
+              cat_counts = Counter(ch['category'] for ch in unique_channels)
+              for cat in category_order:
+                  if cat in cat_counts:
+                      print(f"  {cat}: {cat_counts[cat]}")
+
+          if __name__ == '__main__':
+              main()
+          PYEOF
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "鱼豚无18.m3u"
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update 鱼豚无18.m3u from txt sources - $(date -u +%Y-%m-%d_%H:%M:%S)"
+            git push
+          fi
