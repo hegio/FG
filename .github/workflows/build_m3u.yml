@@ -1,4 +1,4 @@
-name: Build M3U Playlist
+name: Build M3U from TXT Sources
 
 on:
   schedule:
@@ -20,133 +20,88 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Build M3U from lives.txt
+      - name: Build M3U from txt sources
         run: |
           python3 << 'PYEOF'
           import urllib.request
           import urllib.error
           import re
           import os
+          from collections import Counter
 
           LIVES_FILE = "Lv/lives.txt"
           OUTPUT_FILE = "鱼豚无18.m3u"
           TIMEOUT = 30
 
-          # 分类规则映射
-          CATEGORY_RULES = {
-              "央视": ["CCTV", "cctv", "中央", "央视"],
-              "卫视": ["卫视", "北京卫视", "东方卫视", "浙江卫视", "湖南卫视", "江苏卫视", "广东卫视", "深圳卫视", "安徽卫视", "山东卫视", "天津卫视", "重庆卫视", "四川卫视", "湖北卫视", "河南卫视", "河北卫视", "山西卫视", "辽宁卫视", "吉林卫视", "黑龙江卫视", "云南卫视", "贵州卫视", "广西卫视", "江西卫视", "福建卫视", "东南卫视", "海南卫视", "旅游卫视", "青海卫视", "宁夏卫视", "新疆卫视", "西藏卫视", "内蒙古卫视", "甘肃卫视", "陕西卫视", "云南卫视"],
-              "地方": ["地方", "北京", "上海", "天津", "重庆", "河北", "山西", "辽宁", "吉林", "黑龙江", "江苏", "浙江", "安徽", "福建", "江西", "山东", "河南", "湖北", "湖南", "广东", "海南", "四川", "贵州", "云南", "陕西", "甘肃", "青海", "台湾", "内蒙古", "广西", "西藏", "宁夏", "新疆"],
-              "港澳台": ["港", "澳", "台", "TVB", "tvb", "凤凰", "凤凰卫视", "明珠", "翡翠", "本港", "亚视", "ATV", "中天", "东森", "三立", "民视", "台视", "中视", "华视", "公视", "Viu", "viu", "RTHK", "rthk", "Now", "now", "有线", "澳视", "澳门", "台湾", "台灣", "香港", "HK", "Macao", "macao"],
-              "体育": ["体育", " sport", "ESPN", "espn", "NBA", "nba", "CBA", "cba", "足球", "篮球", "网球", "高尔夫", "F1", "f1", "赛车", "奥运", "亚运", "欧冠", "英超", "西甲", "意甲", "德甲", "法甲", "中超", "亚冠", "世界杯", "欧洲杯", "NBA", "CCTV5", "CCTV-5", "CCTV5+", "CCTV-5+", "五星", "劲爆", "风云足球", "高尔夫", "网球", "台球", "钓鱼", "汽摩", "魅力足球", "新视觉", "超级体育", "体育休闲", "体育赛事", "体育频道", "球通", "88看球", "瓜子体育", "咖啡体育", "919体育"],
-              "电影": ["电影", "Movie", "movie", "影院", "影视", "好莱坞", "HBO", "hbo", "CCTV6", "CCTV-6", "CHC", "chc", "家庭影院", "动作电影", "高清电影", "电影频道"],
-              "电视剧": ["电视剧", "剧场", "TV", "tv", "剧集", "CCTV8", "CCTV-8", "电视剧频道"],
-              "动漫": ["动漫", "动画", "卡通", "Anime", "anime", "Cartoon", "cartoon", "少儿", "儿童", "宝贝", "卡酷", "炫动", "金鹰", "优漫", "嘉佳", "少儿频道", "动漫秀场", "新动漫", "动漫世界", "动画天地", "B站", "哔哩", "Bili", "bili"],
-              "综艺": ["综艺", "娱乐", "真人秀", "CCTV3", "CCTV-3", "芒果", "湖南卫视", "浙江卫视", "东方卫视", "江苏卫视", "北京卫视", "深圳卫视", "综艺频道", "欢乐", "喜剧", "选秀", "音乐", "歌唱", "舞蹈", "脱口秀"],
-              "新闻": ["新闻", "News", "news", "资讯", "财经", "CCTV1", "CCTV-1", "CCTV2", "CCTV-2", "CCTV4", "CCTV-4", "CCTV13", "CCTV-13", "东方财经", "第一财经", "凤凰资讯", "BBC", "bbc", "CNN", "cnn", "NHK", "nhk", "CGTN", "cgtn", "新闻频道", "新闻综合", "24小时", "朝闻天下", "新闻联播"],
-              "纪录": ["纪录", "Documentary", "documentary", "Discovery", "discovery", "National Geographic", "国家地理", "CCTV9", "CCTV-9", "CCTV10", "CCTV-10", "纪实", "探索", "发现", "档案", "纪录频道", "纪录片"],
-              "音乐": ["音乐", "Music", "music", "MTV", "mtv", "CCTV15", "CCTV-15", "风云音乐", "音乐频道", "音乐之声", "经典音乐", "流行音乐", "DJ", "dj", "蜻蜓FM", "爱听音乐", "网易云", "音乐台"],
-              "4K": ["4K", "4k", "UHD", "uhd", "超高清", "8K", "8k", "HDR", "hdr"],
-              "国际": ["国际", "Global", "global", "World", "world", "国际频道", "环球", "Discovery", "discovery", "BBC", "bbc", "CNN", "cnn", "NHK", "nhk", "France", "france", "Germany", "germany", "Russia", "russia", "Korea", "korea", "Japan", "japan", "USA", "usa", "UK", "uk", "欧洲", "美洲", "亚洲", "非洲", "澳洲", "阿拉伯", "印度", "泰国", "越南", "印尼", "马来", "新加坡", "菲律宾", "UnifiTV", "jackTV", "Gather", "Mytv", "国际TV", "全球"],
-              "直播": ["直播", "Live", "live", "虎牙", "斗鱼", "B站", "哔哩", "Bili", "bili", "YY", "yy", "轮播", "一起看", "网络直播", "哔哩直播"],
-              "短剧": ["短剧", "短視頻", "微剧", "爽文", "星芽", "河马", "短剧频道"],
-              "其他": []
-          }
+          # 分类规则映射（按优先级排序）
+          CATEGORY_RULES = [
+              ("4K/8K", ["4k", "4K", "8K", "8k", "UHD", "uhd", "超高清", "蓝光", "BD", "HD高清"]),
+              ("央视", ["CCTV", "cctv", "中央", "央视", "央视频道", "央視", "中国中央电视台"]),
+              ("卫视", ["卫视", "北京卫视", "东方卫视", "浙江卫视", "湖南卫视", "江苏卫视", "广东卫视", "深圳卫视", 
+                       "安徽卫视", "山东卫视", "天津卫视", "重庆卫视", "四川卫视", "湖北卫视", "河南卫视", "河北卫视",
+                       "山西卫视", "辽宁卫视", "吉林卫视", "黑龙江卫视", "云南卫视", "贵州卫视", "广西卫视", "江西卫视",
+                       "福建卫视", "东南卫视", "海南卫视", "旅游卫视", "青海卫视", "宁夏卫视", "新疆卫视", "西藏卫视",
+                       "内蒙古卫视", "甘肃卫视", "陕西卫视", "云南卫视", "吉林卫视", "延边卫视", "康巴卫视", "三沙卫视"]),
+              ("地方", ["地方", "上海", "北京", "天津", "重庆", "河北", "山西", "辽宁", "吉林", "黑龙江",
+                       "江苏", "浙江", "安徽", "福建", "江西", "山东", "河南", "湖北", "湖南", "广东",
+                       "海南", "四川", "贵州", "云南", "陕西", "甘肃", "青海", "台湾", "内蒙古", "广西",
+                       "西藏", "宁夏", "新疆", "广州", "深圳", "杭州", "南京", "武汉", "成都", "西安"]),
+              ("港澳台", ["港", "澳", "台", "TVB", "tvb", "凤凰", "凤凰卫视", "明珠", "翡翠", "本港", "亚视", "ATV",
+                        "中天", "东森", "三立", "民视", "台视", "中视", "华视", "公视", "Viu", "viu",
+                        "RTHK", "rthk", "Now", "now", "有线", "澳视", "澳门", "台湾", "台灣", "香港",
+                        "HK", "Macao", "macao", "大爱", "好消息", "原住民", "客家", "年代", "非凡", "民视",
+                        "寰宇", "天映", "美亚", "龙华", "靖天", "采昌", "影迷", "星卫", "卫视电影"]),
+              ("体育", ["体育", "sport", "Sport", "SPORT", "ESPN", "espn", "NBA", "nba", "CBA", "cba",
+                       "足球", "篮球", "网球", "高尔夫", "F1", "f1", "赛车", "奥运", "亚运", "欧冠",
+                       "英超", "西甲", "意甲", "德甲", "法甲", "中超", "亚冠", "世界杯", "欧洲杯",
+                       "五星", "劲爆", "风云足球", "高尔夫", "台球", "钓鱼", "汽摩", "魅力足球",
+                       "新视觉", "超级体育", "体育休闲", "体育赛事", "体育频道", "球通", "看球",
+                       "虎牙", "斗鱼", "YY", "yy", "直播", "轮播", "电竞", "游戏", "Golf", " Racing"]),
+              ("电影", ["电影", "Movie", "movie", "影院", "影视", "好莱坞", "HBO", "hbo", "CCTV6", "CCTV-6",
+                       "CHC", "chc", "家庭影院", "动作电影", "高清电影", "电影频道", "影迷", "天映", "美亚",
+                       "卫视电影", "龙祥", "华纳", "环球", "索尼", "福克斯", "迪士尼"]),
+              ("电视剧", ["电视剧", "剧场", "TV", "tv", "剧集", "CCTV8", "CCTV-8", "电视剧频道", "肥皂剧",
+                        "韩剧", "日剧", "美剧", "泰剧", "台剧", "港剧", "陆剧", "英剧"]),
+              ("动漫", ["动漫", "动画", "卡通", "Anime", "anime", "Cartoon", "cartoon", "少儿", "儿童",
+                       "宝贝", "卡酷", "炫动", "金鹰", "优漫", "嘉佳", "少儿频道", "动漫秀场",
+                       "新动漫", "动漫世界", "动画天地", "B站", "哔哩", "Bili", "bili", "Nick", "nick",
+                       "Disney", "disney", "CN卡通", "东森幼幼", "momo", "YoYo", "yoyo"]),
+              ("综艺", ["综艺", "娱乐", "真人秀", "CCTV3", "CCTV-3", "芒果", "欢乐", "喜剧", "选秀",
+                       "音乐", "歌唱", "舞蹈", "脱口秀", "MTV", "mtv", "Channel[V]", "星空"]),
+              ("新闻", ["新闻", "News", "news", "资讯", "财经", "CCTV1", "CCTV-1", "CCTV2", "CCTV-2",
+                       "CCTV4", "CCTV-4", "CCTV13", "CCTV-13", "东方财经", "第一财经", "凤凰资讯",
+                       "BBC", "bbc", "CNN", "cnn", "NHK", "nhk", "CGTN", "cgtn", "新闻频道",
+                       "新闻综合", "24小时", "朝闻天下", "新闻联播", "焦点访谈"]),
+              ("纪录", ["纪录", "Documentary", "documentary", "Discovery", "discovery",
+                       "National Geographic", "国家地理", "CCTV9", "CCTV-9", "CCTV10", "CCTV-10",
+                       "纪实", "探索", "发现", "档案", "纪录频道", "纪录片", "地理", "历史", "军事"]),
+              ("音乐", ["音乐", "Music", "music", "CCTV15", "CCTV-15", "风云音乐", "音乐频道",
+                       "音乐之声", "经典音乐", "流行音乐", "DJ", "dj", "蜻蜓FM", "爱听音乐",
+                       "网易云", "音乐台", "MTV", "Channel[V]", "国际音乐"]),
+              ("国际", ["国际", "Global", "global", "World", "world", "国际频道", "环球", "France",
+                       "france", "Germany", "germany", "Russia", "russia", "Korea", "korea",
+                       "Japan", "japan", "USA", "usa", "UK", "uk", "欧洲", "美洲", "亚洲", "非洲",
+                       "澳洲", "阿拉伯", "印度", "泰国", "越南", "印尼", "马来", "新加坡", "菲律宾",
+                       "UnifiTV", "jackTV", "Gather", "Mytv", "国际TV", "全球", "NHK", "nhk",
+                       "BBC", "CNN", "ABC", "CBS", "NBC", "Fox", "PBS", "HBO", "Discovery"]),
+              ("短剧", ["短剧", "短視頻", "微剧", "爽文", "星芽", "河马", "短剧频道", "抖音", "快手"]),
+              ("其他", [])
+          ]
 
           def detect_category(channel_name, group_title=None):
               """根据频道名和group-title判断分类"""
               check_text = channel_name
-              if group_title:
+              if group_title and group_title.strip():
                   check_text += " " + group_title
               check_text = check_text.lower()
               
-              for category, keywords in CATEGORY_RULES.items():
+              for category, keywords in CATEGORY_RULES:
                   if category == "其他":
                       continue
                   for kw in keywords:
                       if kw.lower() in check_text:
                           return category
               return "其他"
-
-          def parse_m3u_content(content, source_name):
-              """解析M3U内容，返回频道列表"""
-              channels = []
-              lines = content.splitlines()
-              i = 0
-              while i < len(lines):
-                  line = lines[i].strip()
-                  if line.startswith("#EXTINF:"):
-                      # 解析EXTINF行
-                      extinf = line
-                      # 提取group-title
-                      group_match = re.search(r'group-title="([^"]*)"', extinf)
-                      group_title = group_match.group(1) if group_match else None
-                      
-                      # 提取tvg-name
-                      name_match = re.search(r'tvg-name="([^"]*)"', extinf)
-                      tvg_name = name_match.group(1) if name_match else None
-                      
-                      # 提取频道名（逗号后的部分）
-                      comma_idx = extinf.rfind(',')
-                      if comma_idx != -1:
-                          channel_name = extinf[comma_idx+1:].strip()
-                      else:
-                          channel_name = tvg_name or "Unknown"
-                      
-                      # 获取URL
-                      i += 1
-                      url = ""
-                      while i < len(lines):
-                          url_line = lines[i].strip()
-                          if url_line and not url_line.startswith('#'):
-                              url = url_line
-                              break
-                          i += 1
-                      
-                      if url:
-                          category = detect_category(channel_name, group_title)
-                          channels.append({
-                              'name': channel_name,
-                              'tvg_name': tvg_name or channel_name,
-                              'group_title': group_title or category,
-                              'category': category,
-                              'url': url,
-                              'source': source_name
-                          })
-                  i += 1
-              return channels
-
-          def parse_txt_content(content, source_name):
-              """解析txt内容（非M3U格式，每行一个URL或频道名,URL）"""
-              channels = []
-              lines = content.splitlines()
-              for line in lines:
-                  line = line.strip()
-                  if not line or line.startswith('#'):
-                      continue
-                  
-                  # 尝试解析 "频道名,http://..." 格式
-                  if ',' in line and 'http' in line:
-                      parts = line.split(',', 1)
-                      name = parts[0].strip()
-                      url = parts[1].strip()
-                  elif line.startswith('http'):
-                      # 只有URL，尝试从URL推断名称
-                      url = line
-                      name = os.path.basename(url).split('.')[0] or "Unknown"
-                  else:
-                      continue
-                  
-                  category = detect_category(name, None)
-                  channels.append({
-                      'name': name,
-                      'tvg_name': name,
-                      'group_title': category,
-                      'category': category,
-                      'url': url,
-                      'source': source_name
-                  })
-              return channels
 
           def fetch_url(url, timeout=TIMEOUT):
               """下载URL内容"""
@@ -161,85 +116,234 @@ jobs:
                   print(f"Failed to fetch {url}: {e}")
                   return None
 
-          def main():
-              if not os.path.exists(LIVES_FILE):
-                  print(f"Error: {LIVES_FILE} not found")
-                  return
+          def parse_m3u_content(content):
+              """解析M3U格式内容"""
+              channels = []
+              lines = content.splitlines()
+              i = 0
+              while i < len(lines):
+                  line = lines[i].strip()
+                  if line.startswith("#EXTINF:"):
+                      # 提取group-title
+                      group_match = re.search(r'group-title="([^"]*)"', line)
+                      group_title = group_match.group(1) if group_match else None
+                      
+                      # 提取tvg-name
+                      name_match = re.search(r'tvg-name="([^"]*)"', line)
+                      tvg_name = name_match.group(1) if name_match else None
+                      
+                      # 提取频道名（逗号后的部分）
+                      comma_idx = line.rfind(',')
+                      if comma_idx != -1:
+                          channel_name = line[comma_idx+1:].strip()
+                      else:
+                          channel_name = tvg_name or "Unknown"
+                      
+                      # 获取URL
+                      i += 1
+                      url = ""
+                      while i < len(lines):
+                          url_line = lines[i].strip()
+                          if url_line and not url_line.startswith('#'):
+                              url = url_line
+                              break
+                          i += 1
+                      
+                      if url and not url.endswith('.mp4') and not 'dashang' in url:
+                          category = detect_category(channel_name, group_title)
+                          channels.append({
+                              'name': channel_name,
+                              'tvg_name': tvg_name or channel_name,
+                              'group_title': group_title or category,
+                              'category': category,
+                              'url': url
+                          })
+                  i += 1
+              return channels
+
+          def parse_txt_content(content):
+              """解析TXT格式内容（支持 #genre# 分类格式）"""
+              channels = []
+              lines = content.splitlines()
+              current_genre = None
               
-              # 读取lives.txt中的所有链接
-              with open(LIVES_FILE, 'r', encoding='utf-8') as f:
-                  urls = [line.strip() for line in f if line.strip() and not line.strip().startswith('#')]
-              
-              all_channels = []
-              
-              for url in urls:
-                  print(f"Processing: {url}")
-                  content = fetch_url(url)
-                  if not content:
+              for line in lines:
+                  line = line.strip()
+                  if not line or line.startswith('#'):
                       continue
                   
-                  # 判断内容类型
-                  source_name = os.path.basename(url).split('.')[0]
+                  # 检测 #genre# 格式分类
+                  if '#genre#' in line:
+                      current_genre = line.split(',')[0].strip()
+                      continue
                   
-                  if content.strip().startswith('#EXTM3U'):
-                      channels = parse_m3u_content(content, source_name)
-                  else:
-                      channels = parse_txt_content(content, source_name)
-                  
-                  print(f"  Found {len(channels)} channels from {source_name}")
-                  all_channels.extend(channels)
-              
-              # 去重：按URL去重，保留第一个
-              seen_urls = set()
-              unique_channels = []
-              for ch in all_channels:
-                  if ch['url'] not in seen_urls:
-                      seen_urls.add(ch['url'])
-                      unique_channels.append(ch)
-              
-              # 按分类排序
-              category_order = ["央视", "卫视", "地方", "港澳台", "体育", "电影", "电视剧", "动漫", "综艺", "新闻", "纪录", "音乐", "4K", "国际", "直播", "短剧", "其他"]
-              
-              def sort_key(ch):
-                  cat_idx = category_order.index(ch['category']) if ch['category'] in category_order else 999
-                  return (cat_idx, ch['name'])
-              
-              unique_channels.sort(key=sort_key)
-              
-              # 生成M3U文件
-              with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
-                  f.write('#EXTM3U\n')
-                  
-                  current_category = None
-                  for ch in unique_channels:
-                      # 分类变化时添加注释分隔
-                      if ch['category'] != current_category:
-                          current_category = ch['category']
-                          f.write(f'\n#EXTGRP:{current_category}\n')
+                  # 解析 "频道名,http://..." 格式
+                  if ',' in line and 'http' in line:
+                      parts = line.split(',', 1)
+                      name = parts[0].strip()
+                      url = parts[1].strip()
                       
-                      group = ch['group_title'] or current_category
-                      f.write(f'#EXTINF:-1 tvg-name="{ch["tvg_name"]}" group-title="{group}",{ch["name"]}\n')
-                      f.write(f'{ch["url"]}\n')
-              
-              print(f"\nGenerated {OUTPUT_FILE} with {len(unique_channels)} unique channels")
-              # 统计各分类数量
-              from collections import Counter
-              cat_counts = Counter(ch['category'] for ch in unique_channels)
-              for cat, count in cat_counts.most_common():
-                  print(f"  {cat}: {count}")
+                      # 过滤掉非视频链接
+                      if url.endswith('.mp4') or 'dashang' in url or 'anzhuangjiaocheng' in url:
+                          continue
+                      
+                      # 清理名称中的特殊标记
+                      name = re.sub(r'\$.*$', '', name)  # 去掉$后的线路标记
+                      name = re.sub(r'\\[.*?\\]', '', name)  # 去掉[]标记
+                      name = name.strip()
+                      
+                      # 使用当前genre或自动检测
+                      category = detect_category(name, current_genre)
+                      
+                      # 如果genre本身是一个明确的分类，优先使用
+                      if current_genre:
+                          for cat, _ in CATEGORY_RULES:
+                              if cat in current_genre or current_genre in cat:
+                                  category = cat
+                                  break
+                      
+                      channels.append({
+                          'name': name,
+                          'tvg_name': name,
+                          'group_title': current_genre or category,
+                          'category': category,
+                          'url': url
+                      })
+                  elif line.startswith('http'):
+n                      # 只有URL，尝试从URL推断名称
+n                      url = line.strip()
+n                      if not url.endswith('.mp4'):
+n                          name = os.path.basename(url).split('.')[0] or "Unknown"
+n                          category = detect_category(name, None)
+n                          channels.append({
+n                              'name': name,
+n                              'tvg_name': name,
+n                              'group_title': category,
+n                              'category': category,
+n                              'url': url
+n                          })
+n              return channels
+n
+n          def main():
+n              if not os.path.exists(LIVES_FILE):
+n                  print(f"Error: {LIVES_FILE} not found")
+n                  return
+n              
+n              # 读取lives.txt中的所有链接
+n              with open(LIVES_FILE, 'r', encoding='utf-8') as f:
+n                  urls = [line.strip() for line in f if line.strip() and not line.strip().startswith('#')]
+n              
+n              # 只保留 .txt 后缀的链接
+n              txt_urls = [url for url in urls if url.lower().endswith('.txt')]
+n              print(f"Processing {len(txt_urls)} .txt sources...")
+n              
+n              all_channels = []
+n              
+n              for url in txt_urls:
+n                  print(f"Processing: {url}")
+n                  content = fetch_url(url)
+n                  if not content:
+n                      continue
+n                  
+n                  # 判断内容类型并解析
+n                  if content.strip().startswith('#EXTM3U'):
+n                      channels = parse_m3u_content(content)
+n                  else:
+n                      channels = parse_txt_content(content)
+n                  
+n                  print(f"  Found {len(channels)} channels")
+n                  all_channels.extend(channels)
+n              
+n              # 去重：按URL去重，保留第一个
+n              seen_urls = set()
+n              unique_channels = []
+n              for ch in all_channels:
+n                  # 规范化URL用于去重
+n                  norm_url = ch['url'].split('$')[0].strip()
+n                  if norm_url not in seen_urls and len(norm_url) > 10:
+n                      seen_urls.add(norm_url)
+n                      unique_channels.append(ch)
+n              
+n              # 按分类排序
+n              category_order = [cat for cat, _ in CATEGORY_RULES]
+n              
+n              def sort_key(ch):
+n                  cat_idx = category_order.index(ch['category']) if ch['category'] in category_order else 999
+n                  return (cat_idx, ch['name'])
+n              
+n              unique_channels.sort(key=sort_key)
+n              
+n              # 生成M3U文件
+n              with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
+n                  f.write('#EXTM3U\n')
+n                  
+n                  current_category = None
+n                  for ch in unique_channels:
+n                      # 分类变化时添加注释分隔
+n                      if ch['category'] != current_category:
+n                          current_category = ch['category']
+n                          f.write(f'\n#EXTGRP:{current_category}\n')
+n                      
+n                      group = ch['group_title'] or current_category
+n                      # 清理名称用于显示
+n                      display_name = ch['name'].replace(',', ' ').strip()
+n                      f.write(f'#EXTINF:-1 tvg-name="{ch["tvg_name"]}" group-title="{group}",{display_name}\n')
+n                      f.write(f'{ch["url"]}\n')
+n              
+n              print(f"\nGenerated {OUTPUT_FILE} with {len(unique_channels)} unique channels")
+n              # 统计各分类数量
+n              cat_counts = Counter(ch['category'] for ch in unique_channels)
+n              for cat in category_order:
+n                  if cat in cat_counts:
+n                      print(f"  {cat}: {cat_counts[cat]}")
+n
+n          if __name__ == '__main__':
+n              main()
+n          PYEOF
+n
+n      - name: Commit and push changes
+n        run: |
+n          git config user.name "github-actions[bot]"
+n          git config user.email "github-actions[bot]@users.noreply.github.com"
+n          git add "鱼豚无18.m3u"
+n          if git diff --cached --quiet; then
+n            echo "No changes to commit"
+n          else
+n            git commit -m "Update 鱼豚无18.m3u from txt sources - $(date -u +%Y-%m-%d_%H:%M:%S)"
+n            git push
+n          fi
+n```
 
-          if __name__ == '__main__':
-              main()
-          PYEOF
-
-      - name: Commit and push changes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add "鱼豚无18.m3u"
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Update 鱼豚无18.m3u - $(date -u +%Y-%m-%d_%H:%M:%S)"
-            git push
-          fi
+n**主要修改点：**
+n
+n1. **只处理 .txt 后缀链接**：通过 `txt_urls = [url for url in urls if url.lower().endswith('.txt')]` 过滤
+n
+n2. **智能分类系统**：
+n   - **4K/8K**：优先匹配4K、8K、UHD等超高清频道
+n   - **央视**：CCTV系列、中央电视台
+n   - **卫视**：各省级卫视
+n   - **地方**：地方台、城市台
+n   - **港澳台**：香港、澳门、台湾频道
+n   - **体育**：体育频道、赛事、直播平台
+n   - **电影**：电影频道、HBO、CHC等
+n   - **电视剧**：剧场、剧集频道
+n   - **动漫**：动画、卡通、少儿频道
+n   - **综艺**：综艺、娱乐、音乐频道
+n   - **新闻**：新闻、财经、资讯频道
+n   - **纪录**：纪录片、探索、国家地理
+n   - **音乐**：音乐频道、MTV
+n   - **国际**：国际频道、海外台
+n   - **短剧**：短剧、短视频平台
+n   - **其他**：未分类频道
+n
+n3. **支持两种格式**：
+n   - **M3U格式**：`#EXTM3U` 开头的标准格式，提取 `group-title` 和 `tvg-name`
+n   - **TXT格式**：`频道名,http://...` 格式，支持 `#genre#` 分类标记
+n
+n4. **过滤机制**：自动过滤 `.mp4` 文件、打赏链接、安装教程等非直播链接
+n
+n5. **去重优化**：按URL去重，去掉 `$` 后的线路标记进行规范化比较
+n
+n6. **输出格式**：标准M3U格式，按分类分组，添加 `#EXTGRP` 注释便于阅读
+n
+n保存为 `.github/workflows/build_m3u_txt.yml` 即可。
