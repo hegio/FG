@@ -40,42 +40,85 @@ jobs:
           with open(source_file, 'r', encoding='utf-8') as f:
               content = f.read()
 
-          # 移除 JSON 中可能存在的单行和多行注释（防止解析报错）
+          # 1. 基础清理：移除单行和多行注释
           content_clean = re.sub(r'//.*', '', content)
           content_clean = re.sub(r'/\*.*?\*/', '', content_clean, flags=re.DOTALL)
+          # 2. 修复非标准 JSON 中的尾部逗号（防止 json.loads 报错）
+          content_clean = re.sub(r',\s*([\]}])', r'\1', content_clean)
 
           urls = []
+
+          # 定义递归查找函数，可深入到任意嵌套层级寻找 url 和 urls
+          def extract_urls_recursively(node):
+              if isinstance(node, dict):
+                  for k, v in node.items():
+                      if k in ('url', 'urls'):
+                          if isinstance(v, str):
+                              urls.append(v)
+                          elif isinstance(v, list):
+                              for item in v:
+                                  if isinstance(item, str):
+                                      urls.append(item)
+                      else:
+                          extract_urls_recursively(v)
+              elif isinstance(node, list):
+                  for item in node:
+                      if isinstance(item, str):
+                          urls.append(item)
+                      else:
+                          extract_urls_recursively(item)
+
+          # 尝试标准 JSON 递归解析
           try:
-              # 尝试标准 JSON 解析
               data = json.loads(content_clean)
               if isinstance(data, dict) and 'lives' in data:
-                  for item in data['lives']:
-                      if isinstance(item, dict):
-                          if 'url' in item and isinstance(item['url'], str):
-                              urls.append(item['url'])
-                          elif 'urls' in item and isinstance(item['urls'], list):
-                              for u in item['urls']:
-                                  if isinstance(u, str):
-                                      urls.append(u)
+                  lives_data = data['lives']
+                  if isinstance(lives_data, str):
+                      urls.append(lives_data)
+                  else:
+                      extract_urls_recursively(lives_data)
           except Exception as e:
-              # 容错：如果 JSON 解析失败（如存在非标准格式或尾部逗号），则使用正则提取 lives 块内的 url
-              print(f"JSON parse failed ({e}), falling back to regex.")
-              lives_match = re.search(r'\"lives\"\s*:\s*\[(.*?)\]', content_clean, re.DOTALL)
-              if lives_match:
-                  lives_block = lives_match.group(1)
-                  urls = re.findall(r'\"urls?\"\s*:\s*\"([^\"]+)\"', lives_block)
+              # 容错：如果 JSON 解析失败，执行高容错正则深度提取
+              print(f"JSON parse failed ({e}), falling back to regex extraction.")
+              # 检查 lives 是否直接为单行字符串形式
+              string_match = re.search(r'\"lives\"\s*:\s*\"([^\"]+)\"', content_clean)
+              if string_match:
+                  urls.append(string_match.group(1))
+              else:
+                  # 通过括号匹配，精准截取整个 "lives": [ ... ] 块
+                  lives_index = content_clean.find('"lives"')
+                  if lives_index != -1:
+                      lives_segment = content_clean[lives_index:]
+                      start_bracket = lives_segment.find('[')
+                      if start_bracket != -1:
+                          bracket_count = 0
+                          block_chars = []
+                          for char in lives_segment[start_bracket:]:
+                              if char == '[':
+                                  bracket_count += 1
+                              elif char == ']':
+                                  bracket_count -= 1
+                              block_chars.append(char)
+                              if bracket_count == 0:
+                                  break
+                          lives_block = "".join(block_chars)
+                          
+                          # 提取块内所有以 http/https/proxy/clan/file 开头的链接
+                          raw_urls = re.findall(r'\"((?:https?|proxy|clan|file)://[^\"]+)\"', lives_block)
+                          # 提取块内以 .txt 或 .m3u 结尾的值（防止协议头不标准）
+                          txt_m3u_urls = re.findall(r'\"([^\"]+\.(?:txt|m3u)(?:\?[^\"]*)?)\"', lives_block)
+                          urls.extend(raw_urls)
+                          urls.extend(txt_m3u_urls)
 
-          # 过滤空白字符，并进行去重（保留原始顺序）
+          # 去重和过滤空白（保留原始顺序）
           unique_urls = []
           for url in urls:
               url = url.strip()
               if url and url not in unique_urls:
                   unique_urls.append(url)
 
-          # 创建输出目录
+          # 创建输出目录并写入
           os.makedirs(os.path.dirname(output_file), exist_ok=True)
-
-          # 写入文件
           with open(output_file, 'w', encoding='utf-8') as f_out:
               for url in unique_urls:
                   f_out.write(url + '\n')
