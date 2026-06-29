@@ -1,0 +1,98 @@
+name: take txt
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '鱼壳海豚无18加'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  extract-urls:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Extract URLs from lives
+        run: |
+          cat << 'EOF' > extract.py
+          import os
+          import re
+          import json
+
+          source_file = '鱼壳海豚无18加'
+          output_file = 'Lv/lives.txt'
+
+          if not os.path.exists(source_file):
+              print(f"Error: Source file {source_file} not found.")
+              exit(1)
+
+          with open(source_file, 'r', encoding='utf-8') as f:
+              content = f.read()
+
+          # 移除 JSON 中可能存在的单行和多行注释（防止解析报错）
+          content_clean = re.sub(r'//.*', '', content)
+          content_clean = re.sub(r'/\*.*?\*/', '', content_clean, flags=re.DOTALL)
+
+          urls = []
+          try:
+              # 尝试标准 JSON 解析
+              data = json.loads(content_clean)
+              if isinstance(data, dict) and 'lives' in data:
+                  for item in data['lives']:
+                      if isinstance(item, dict):
+                          if 'url' in item and isinstance(item['url'], str):
+                              urls.append(item['url'])
+                          elif 'urls' in item and isinstance(item['urls'], list):
+                              for u in item['urls']:
+                                  if isinstance(u, str):
+                                      urls.append(u)
+          except Exception as e:
+              # 容错：如果 JSON 解析失败（如存在非标准格式或尾部逗号），则使用正则提取 lives 块内的 url
+              print(f"JSON parse failed ({e}), falling back to regex.")
+              lives_match = re.search(r'\"lives\"\s*:\s*\[(.*?)\]', content_clean, re.DOTALL)
+              if lives_match:
+                  lives_block = lives_match.group(1)
+                  urls = re.findall(r'\"urls?\"\s*:\s*\"([^\"]+)\"', lives_block)
+
+          # 过滤空白字符，并进行去重（保留原始顺序）
+          unique_urls = []
+          for url in urls:
+              url = url.strip()
+              if url and url not in unique_urls:
+                  unique_urls.append(url)
+
+          # 创建输出目录
+          os.makedirs(os.path.dirname(output_file), exist_ok=True)
+
+          # 写入文件
+          with open(output_file, 'w', encoding='utf-8') as f_out:
+              for url in unique_urls:
+                  f_out.write(url + '\n')
+
+          print(f"Successfully saved {len(unique_urls)} URLs to {output_file}")
+          EOF
+          python extract.py
+          rm extract.py
+
+      - name: Commit and Push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add Lv/lives.txt
+          if git diff --staged --quiet; then
+            echo "No changes in lives.txt, skipping commit."
+          else
+            git commit -m "Auto-update lives.txt [skip ci]"
+            git push
+          fi
