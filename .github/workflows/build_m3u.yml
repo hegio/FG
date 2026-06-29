@@ -2,8 +2,8 @@ name: Auto Update M3U Playlist
 
 on:
   schedule:
-    # 每 18 小时自动运行一次 (国际标准时间 UTC 转换为北京时间)
-    - cron: '0 */18 * * *'
+    # 每 48 小时自动运行一次 (国际标准时间 UTC 转换为北京时间)
+    - cron: '0 */48 * * *'
   workflow_dispatch: # 允许在 GitHub Actions 页面手动点击触发
 
 jobs:
