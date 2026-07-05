@@ -95,6 +95,12 @@
 			"api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/py/瓜子APP.py"
 		},
 		{
+			"key": "nvm",
+			"name": "🐬泥视频.py",
+			"type": 3,
+			"api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/py/泥视频.py"
+		},
+		{
 			"key": "QU",
 			"name": "🐬奇优影院.py",
 			"type": 3,
@@ -613,6 +619,18 @@
 			"name": "🐬黑料不打烊.py｜🔞",
 			"type": 3,
 			"api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/py/黑料不打烊.py"
+		},
+		{
+			"key": "hgsq",
+			"name": "🐬韩国色情电影.py｜🔞",
+			"type": 3,
+			"api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/py/韩国色情电影.py"
+		},
+		{
+			"key": "smvm",
+			"name": "🐬神秘电影.py｜🔞",
+			"type": 3,
+			"api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/GHK/refs/heads/main/py/神秘电影.py"
 		},
 		{
 			"key": "xj",
