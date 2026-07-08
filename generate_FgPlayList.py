@@ -44,7 +44,7 @@ all_channels = []
 # M3U 文件
 m3u_sources = [
     ("zilongTV", "🐬"),
-    ("海豚无18加555", "🐬"),
+    ("ok海豚无18加", "🐬"),
 ]
 for fname, prefix in m3u_sources:
     if os.path.isfile(fname):
@@ -53,7 +53,7 @@ for fname, prefix in m3u_sources:
         print(f"[INFO] {fname}: 解析到 {len(ch)} 条频道")
 
 # JSON（所有三个版本）
-json_sources = ["海豚666", "鱼壳海豚", "鱼壳海豚无18加","鱼壳海豚_local", "鱼壳海豚_gb"]
+json_sources = ["ok海豚", "鱼壳海豚", "鱼壳海豚无18加","鱼壳海豚_local", "鱼壳海豚_gb"]
 for fname in json_sources:
     if os.path.isfile(fname):
         ch = extract_from_json(fname)
