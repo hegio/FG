@@ -159,6 +159,12 @@
             "api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/py/优视频.py"
         },
         {
+            "key": "ayf",
+            "name": "🐬爱壹帆影视.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/py/爱壹帆.py"
+        },
+        {
             "key": "MH",
             "name": "🐬麻花影视.py[追剧]",
             "type": 3,
@@ -855,6 +861,18 @@
             "name": "🐬Pornhub.py｜🔞[成人]",
             "type": 3,
             "api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/py/Pornhub.py"
+        },
+        {
+            "key": "xhamster",
+            "name": "🐬xhamster.py｜🔞[成人]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/py/xhamster.py"
+        },
+        {
+            "key": "eporner",
+            "name": "🐬EPORNER.py｜🔞[成人]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/py/EPORNER.py"
         },
         {
             "key": "91porn",
