@@ -4,6 +4,8 @@ on:
   push:
     paths:
       - '鱼壳海豚'
+  schedule:
+    - cron: '0 0 * * *'
   workflow_dispatch:
 
 permissions:
@@ -18,48 +20,42 @@ jobs:
 
       - name: Extract lives URLs with names
         run: |
-          SOURCE_FILE="鱼壳海豚"
-          OUTPUT_FILE="Lv/lives.txt"
-          
           # Ensure output directory exists
           mkdir -p Lv
-          
+
           # Extract URLs and names from lives array using Python
-          python3 << 'EOF'
+          python3 << 'PYEOF'
           import json
           import re
-          
-          with open("${{ env.SOURCE_FILE }}", "r", encoding="utf-8") as f:
+
+          with open("鱼壳海豚", "r", encoding="utf-8") as f:
               content = f.read()
-          
+
           # Find the lives array
           lives_match = re.search(r'"lives"\s*:\s*(\[.*?\])(?=\s*,\s*"parses")', content, re.DOTALL)
           if not lives_match:
               # Fallback: try to find lives array with a simpler pattern
               lives_match = re.search(r'"lives"\s*:\s*(\[.*?\])', content, re.DOTALL)
-          
+
           if lives_match:
               lives_json = lives_match.group(1)
               # Fix any trailing commas before parsing
-              lives_json = re.sub(r',\s*]', ']', lives_json)
+              lives_json = re.sub(r',\s*\]', ']', lives_json)
               lives = json.loads(lives_json)
-              
-              with open("${{ env.OUTPUT_FILE }}", "w", encoding="utf-8") as out:
+
+              with open("Lv/lives.txt", "w", encoding="utf-8") as out:
                   for item in lives:
                       if isinstance(item, dict) and "url" in item:
                           name = item.get("name", "Unknown")
                           url = item["url"]
                           # Write as: name,url format
                           out.write(f"{name},{url}\n")
-              
-              print(f"Extracted {len(lives)} entries to ${{ env.OUTPUT_FILE }}")
+
+              print(f"Extracted {len(lives)} entries to Lv/lives.txt")
           else:
               print("Could not find lives array")
               exit(1)
-          EOF
-        env:
-          SOURCE_FILE: "鱼壳海豚"
-          OUTPUT_FILE: "Lv/lives.txt"
+          PYEOF
 
       - name: Commit and push changes
         run: |
