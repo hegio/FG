@@ -169,54 +169,75 @@ jobs:
                   return parse_txt(content, main_group)
 
           def main():
-              # 1. 获取主 lives.txt 索引内容
+              all_channels = []
+
+              # ================== 1. 处理主 lives.txt 中的频道 ==================
               lives_url = "https://raw.githubusercontent.com/hegio/FG/main/Lv/lives.txt"
               print("正在下载 lives.txt 主索引...")
               lives_content = fetch_content(lives_url)
-              if not lives_content:
-                  print("无法加载 lives.txt，更新终止。")
-                  return
+              if lives_content:
+                  sources = {}
+                  for line in lives_content.splitlines():
+                      line = line.strip()
+                      if not line or line.startswith("#"):
+                          continue
+                      parts = line.split(",", 1)
+                      if len(parts) == 2:
+                          name, url = parts[0].strip(), parts[1].strip()
+                          sources[name] = url
 
-              # 2. 解析 lives.txt 提取名称与链接映射
-              sources = {}
-              for line in lives_content.splitlines():
-                  line = line.strip()
-                  if not line or line.startswith("#"):
-                      continue
-                  parts = line.split(",", 1)
-                  if len(parts) == 2:
-                      name, url = parts[0].strip(), parts[1].strip()
-                      sources[name] = url
+                  matched_sources = {}
+                  for target in target_names:
+                      if target in sources:
+                          matched_sources[target] = sources[target]
+                      else:
+                          for s_name, s_url in sources.items():
+                              if target in s_name or s_name in target:
+                                  matched_sources[target] = s_url
+                                  break
 
-              # 3. 匹配目标分类
-              matched_sources = {}
-              for target in target_names:
-                  if target in sources:
-                      matched_sources[target] = sources[target]
-                  else:
-                      # 模糊匹配容错
-                      for s_name, s_url in sources.items():
-                          if target in s_name or s_name in target:
-                              matched_sources[target] = s_url
-                              break
+                  for target in target_names:
+                      if target not in matched_sources:
+                          print(f"未在 lives.txt 中找到匹配的分类: '{target}'，跳过。")
+                          continue
+                      url = matched_sources[target]
+                      print(f"正在处理分类: '{target}' -> 链接: {url}")
+                      source_content = fetch_content(url)
+                      if source_content:
+                          channels = parse_source(source_content, target)
+                          all_channels.extend(channels)
+                          print(f"  成功提取了 {len(channels)} 个频道")
+              else:
+                  print("无法加载 lives.txt，跳过主源处理。")
 
-              all_channels = []
-              # 4. 按顺序依次抓取各个对应链接里的频道
-              for target in target_names:
-                  if target not in matched_sources:
-                      print(f"未在 lives.txt 中找到匹配的分类: '{target}'，跳过。")
-                      continue
-                  url = matched_sources[target]
-                  print(f"正在处理分类: '{target}' -> 链接: {url}")
-                  source_content = fetch_content(url)
-                  if source_content:
-                      channels = parse_source(source_content, target)
-                      all_channels.extend(channels)
-                      print(f"  成功提取了 {len(channels)} 个频道")
-                  else:
-                      print(f"  获取链接内容失败，跳过。")
+              # ================== 2. 动态读取本地 extra_sources.txt 中的额外单源 ==================
+              extra_filename = "extra_sources.txt"
+              if os.path.exists(extra_filename):
+                  print(f"检测到本地配置文件 {extra_filename}，开始读取...")
+                  try:
+                      with open(extra_filename, "r", encoding="utf-8") as f:
+                          for line in f:
+                              line = line.strip()
+                              # 跳过空行及注释
+                              if not line or line.startswith("#"):
+                                  continue
+                              parts = line.split(",", 1)
+                              if len(parts) == 2:
+                                  ext_name, ext_url = parts[0].strip(), parts[1].strip()
+                                  print(f"正在抓取额外单源: '{ext_name}' -> 链接: {ext_url}")
+                                  source_content = fetch_content(ext_url)
+                                  if source_content:
+                                      channels = parse_source(source_content, ext_name)
+                                      all_channels.extend(channels)
+                                      print(f"  额外单源 '{ext_name}' 提取成功，共 {len(channels)} 个频道")
+                                  else:
+                                      print(f"  抓取额外单源链接失败: {ext_url}")
+                  except Exception as e:
+                      print(f"读取本地 {extra_filename} 发生错误: {e}")
+              else:
+                  print(f"未检测到本地额外源配置文件 {extra_filename}，不处理额外单源。")
 
-              # 5. 去重 (在保持原顺序的情况下，去除完全相同的频道)
+              # ================== 3. 去重与输出 ==================
               seen = set()
               unique_channels = []
               for ch in all_channels:
@@ -225,7 +246,6 @@ jobs:
                       seen.add(key)
                       unique_channels.append(ch)
 
-              # 6. 生成并输出最终的 鱼豚无18a.m3u 文件
               output_filename = "鱼豚无18a.m3u"
               print(f"正在写入 {output_filename}...")
               try:
@@ -253,6 +273,5 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add 鱼豚无18a.m3u
-          # 如果有变更则进行提交，无变更则直接跳过，防止报错
           git diff-index --quiet HEAD || git commit -m "Auto Update: 鱼豚无18a.m3u (每18小时自动更新)"
           git push
