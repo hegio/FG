@@ -5,11 +5,13 @@ on:
     - cron: '0 */6 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   sync:
     runs-on: ubuntu-latest
     env:
-      # 抑制 Node.js 警告
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
@@ -25,7 +27,7 @@ jobs:
 
     - name: Download all upstream files
       run: |
-        set -euo pipefail
+        set -uo pipefail
         files=(
           "zilongTV:https://raw.githubusercontent.com/zilong7728/Collect-IPTV/refs/heads/main/best_sorted.m3u8"
           "ok海豚无18加:https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/ok%E6%B5%B7%E8%B1%9A%E6%97%A018%E5%8A%A0.json"
@@ -33,22 +35,23 @@ jobs:
           "鱼壳海豚:https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/Web%E9%B1%BC%E5%A3%B3%E6%B5%B7%E8%B1%9A.json"
           "鱼壳海豚无18加:https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/Web%E9%B1%BC%E5%A3%B3%E6%B5%B7%E8%B1%9A%E6%97%A018%E5%8A%A0.json"
         )
-        
+
         for item in "${files[@]}"; do
           name="${item%%:*}"
           url="${item##*:}"
-          
+
           echo "👉 Downloading $name ..."
-          
-          if curl -L --fail --max-time 30 -o "$name.tmp" "https://ghfast.top/$url"; then
-            echo "✅ $name 下载成功（ghfast）"
-          elif curl -L --fail --max-time 30 -o "$name.tmp" "$url"; then
+
+          if curl -L --fail --max-time 30 -o "$name.tmp" "$url"; then
             echo "✅ $name 下载成功（direct）"
+          elif curl -L --fail --max-time 30 -o "$name.tmp" "https://ghfast.top/$url"; then
+            echo "✅ $name 下载成功（ghfast）"
           else
             echo "::warning::Failed to download $name – skipping"
+            rm -f "$name.tmp"
             continue
           fi
-          
+
           if [ -s "$name.tmp" ]; then
             mv "$name.tmp" "$name"
             echo "📦 $name 已保存 ($(wc -l < $name 2>/dev/null || echo '?') 行)"
@@ -65,36 +68,37 @@ jobs:
 
     - name: Read extra_sources.txt and parse extra sources
       run: |
-        cat > read_extra.py << 'EOF'
+        cat > read_extra.py << 'PYEOF'
+        import json
         import os
 
         def parse_extra_sources():
             """读取并解析 extra_sources.txt"""
             extra_sources = []
-            
+
             if not os.path.isfile('extra_sources.txt'):
                 print("[INFO] extra_sources.txt 不存在，跳过")
                 return extra_sources
-            
+
             print("[INFO] 正在读取 extra_sources.txt...")
-            
+
             with open('extra_sources.txt', 'r', encoding='utf-8') as f:
                 lines = f.readlines()
-            
+
             for line in lines:
                 line = line.strip()
-                
+
                 # 跳过空行和注释
                 if not line or line.startswith('#'):
                     continue
-                
+
                 # 解析 "名称,URL" 格式
                 if ',' in line:
                     parts = line.split(',', 1)
                     if len(parts) == 2:
                         name = parts[0].strip()
                         url = parts[1].strip()
-                        
+
                         if name and url:
                             extra_sources.append({
                                 "name": name,
@@ -103,25 +107,27 @@ jobs:
                                 "url": url
                             })
                             print(f"[INFO] 解析额外源: {name}")
-            
+
             print(f"[DONE] 共解析到 {len(extra_sources)} 条额外源")
             return extra_sources
 
         # 保存为临时文件供后续步骤使用
         extra_sources = parse_extra_sources()
-        
+
         # 保存到文件（用于其他步骤读取）
         with open('_extra_sources_list.json', 'w', encoding='utf-8') as f:
             json.dump(extra_sources, f, ensure_ascii=False, indent=4)
-        
+
         print(f"[INFO] 已保存额外源到 _extra_sources_list.json")
-        EOF
+        PYEOF
         python3 read_extra.py
 
     - name: Add external live sources to 海豚影视
       run: |
-        cat > add_sources.py << 'EOF'
-        import json, sys, os
+        cat > add_sources.py << 'PYEOF'
+        import json
+        import sys
+        import os
 
         def add_live_sources():
             src_file = '海豚影视'
@@ -150,7 +156,7 @@ jobs:
                     "url": "https://ghfast.top/https://raw.githubusercontent.com/zilong7728/Collect-IPTV/main/best_sorted.m3u8"
                 }
             ]
-            
+
             # 读取额外源
             if os.path.isfile('_extra_sources_list.json'):
                 with open('_extra_sources_list.json', 'r', encoding='utf-8') as f:
@@ -177,14 +183,14 @@ jobs:
 
         if __name__ == '__main__':
             sys.exit(0 if add_live_sources() else 0)
-        EOF
+        PYEOF
         python3 add_sources.py
 
-    # ── 6️⃣ 生成鱼壳海豚_local.json（本地 spider.jar 挂载） ──
     - name: Generate 鱼壳海豚_local.json
       run: |
-        cat > generate_local.py << 'EOF'
-        import json, os
+        cat > generate_local.py << 'PYEOF'
+        import json
+        import os
 
         src = "鱼壳海豚"
         dst = "鱼壳海豚_local.json"
@@ -214,14 +220,14 @@ jobs:
         print(f"[DONE] 已生成 {dst}")
         print(f"[INFO] spider 路径: http://192.168.123.90:8080/spider.jar")
         print(f"[INFO] 请确保 Termux 中已运行: cd ~ && python -m http.server 8080")
-        EOF
+        PYEOF
         python3 generate_local.py
 
-    # ── 7️⃣ 生成鱼壳海豚_gb.json（GitHub spider.jar 挂载） ──
     - name: Generate 鱼壳海豚_gb.json
       run: |
-        cat > generate_gb.py << 'EOF'
-        import json, os
+        cat > generate_gb.py << 'PYEOF'
+        import json
+        import os
 
         src = "鱼壳海豚"
         dst = "鱼壳海豚_gb.json"
@@ -249,26 +255,19 @@ jobs:
 
         print(f"[DONE] 已生成 {dst}（GitHub 挂载）")
         print(f"[INFO] spider URL: https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/spider.jar")
-        EOF
+        PYEOF
         python3 generate_gb.py
-
-    - name: Cleanup temporary files
-      run: |
-        # 清理临时文件
-        rm -f _extra_sources_list.json
-        echo "[INFO] 已清理临时文件"
 
     - name: Commit and push changes
       run: |
+        # 清理临时文件（在 commit 之前）
+        rm -f _extra_sources_list.json read_extra.py add_sources.py generate_local.py generate_gb.py
+
         git add -A
         if git diff --staged --quiet; then
           echo "✅ 没有需要提交的改动"
         else
-          git commit -m "🔄 Sync: Update files with extra sources [$(date '+%Y-%m-%d %H:%M')]
-          - 同步所有上游文件
-          - 整合 extra_sources.txt 的额外源
-          - 生成鱼壳海豚_local.json（本地 spider.jar）
-          - 生成鱼壳海豚_gb.json（GitHub spider.jar）"
+          git commit -m "🔄 Sync: Update files with extra sources [$(date '+%Y-%m-%d %H:%M')]"                      -m "- 同步所有上游文件"                      -m "- 整合 extra_sources.txt 的额外源"                      -m "- 生成鱼壳海豚_local.json（本地 spider.jar）"                      -m "- 生成鱼壳海豚_gb.json（GitHub spider.jar）"
           git push
           echo "🚀 提交已完成"
         fi
