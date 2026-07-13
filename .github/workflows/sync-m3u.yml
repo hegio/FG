@@ -252,10 +252,11 @@ jobs:
         EOF
         python3 generate_gb.py
 
-    - name: Convert specific M3U files (keep YouTube links)
+    - name: Cleanup temporary files
       run: |
-        cat > convert.py << 'EOF'
-        import os, re, json
+        # 清理临时文件
+        rm -f _extra_sources_list.json
+        echo "[INFO] 已清理临时文件"
 
     - name: Commit and push changes
       run: |
@@ -267,7 +268,7 @@ jobs:
           - 同步所有上游文件
           - 整合 extra_sources.txt 的额外源
           - 生成鱼壳海豚_local.json（本地 spider.jar）
-          - 生成鱼壳海豚_gb.json（GitHub spider.jar）
+          - 生成鱼壳海豚_gb.json（GitHub spider.jar）"
           git push
           echo "🚀 提交已完成"
         fi
