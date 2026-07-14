@@ -46,7 +46,7 @@
         },
         {
             "key": "hajim-腾讯备",
-            "name": "🐬腾讯备用[追剧]",
+            "name": "🐬腾讯视频备用[追剧]",
             "type": 3,
             "api": "https://ghfast.top/https://raw.githubusercontent.com/IY-CPU/IY/main/lib/drpy2.min.js",
             "searchable": 1,
@@ -128,6 +128,12 @@
             "type": 3,
             "api": "csp_yt",
             "homePage": "https://fgblh.github.io/uhuj.github.io/youtube.html"
+        },
+        {
+            "key": "cbh",
+            "name": "🐬茶杯狐.py(关梯)[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/py/茶杯狐.py"
         },
         {
             "key": "ppx",
@@ -2791,10 +2797,34 @@
             "ua": "okHttp/Mod-1.5.0.0"
         },
         {
-            "name": "🐬王子多情单源",
+            "name": "🐜王子多情单源",
             "type": 0,
             "ua": "okhttp",
             "url": "http://wangziduoqing.com/yuan/zb.txt"
+        },
+        {
+            "name": "🐜abszmZBY",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://raw.githubusercontent.com/SWCZ56/abszm-zby/refs/heads/main/zby.m3u"
+        },
+        {
+            "name": "🐜Supprise",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://raw.githubusercontent.com/Supprise0901/TVBox_live/refs/heads/main/live.txt"
+        },
+        {
+            "name": "🐜C1",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "http://121.143.97.131:9981/playlist/channels.m3u"
+        },
+        {
+            "name": "🐜C2",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "http://38.75.136.137:88/api/tvlist.php"
         }
     ],
     "parses": [
