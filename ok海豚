@@ -71,6 +71,12 @@
            "api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/py/芒果TV.py"
        },
 		{
+			"key": "ddvm",
+			"name": "🐬低端影视.py",
+			"type": 3,
+			"api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/py/低端影视.py"
+		},
+		{
 			"key": "cbh",
 			"name": "🐬茶杯狐.py(关梯)",
 			"type": 3,
