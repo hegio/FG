@@ -88,11 +88,9 @@ jobs:
             for line in lines:
                 line = line.strip()
 
-                # 跳过空行和注释
                 if not line or line.startswith('#'):
                     continue
 
-                # 解析 "名称,URL" 格式
                 if ',' in line:
                     parts = line.split(',', 1)
                     if len(parts) == 2:
@@ -114,7 +112,6 @@ jobs:
         # 保存为临时文件供后续步骤使用
         extra_sources = parse_extra_sources()
 
-        # 保存到文件（用于其他步骤读取）
         with open('_extra_sources_list.json', 'w', encoding='utf-8') as f:
             json.dump(extra_sources, f, ensure_ascii=False, indent=4)
 
@@ -157,7 +154,6 @@ jobs:
                 }
             ]
 
-            # 读取额外源
             if os.path.isfile('_extra_sources_list.json'):
                 with open('_extra_sources_list.json', 'r', encoding='utf-8') as f:
                     extra = json.load(f)
@@ -176,7 +172,7 @@ jobs:
 
             if added:
                 with open(src_file, 'w', encoding='utf-8') as f:
-                    json.dump(data, f, ensure_ascii=False, indent=4)
+                    json.dump(data, f, ensure_ascii=False, 4)
                 print(f"[INFO] 共新增 {added} 条直播源")
                 return True
             return False
@@ -186,10 +182,71 @@ jobs:
         PYEOF
         python3 add_sources.py
 
-    # ── 6️⃣ 生成 鱼壳海豚_local.json（本地 spider.jar 挂载） ──
+    # ── 6️⃣ 更新 ok海豚（整合 extra_sources.txt） ──
+    - name: Update ok海豚 with extra sources
+      run: |
+        cat > update_ok.py << 'PYEOF'
+        import json
+        import os
+
+        src = "ok海豚"
+        if not os.path.isfile(src):
+            print(f"[WARN] {src} 不存在，跳过更新")
+            exit(0)
+
+        with open(src, 'r', 'utf-8') as f:
+            data = json.load(f)
+
+        # 保持原有的 spider、wallpaper、logo 不变
+        # 只更新 lives 数组
+
+        if os.path.isfile('_extra_sources_list.json'):
+            with open('_extra_sources_list.json', 'r', encoding='utf-8') as f:
+                extra = json.load(f)
+                data.setdefault('lives', []).extend(extra)
+                print(f"[INFO] 已整合 {len(extra)} 条额外源到 ok海豚")
+
+        with open(src, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+
+        print(f"[DONE] 已更新 {src}（保留原 spider 配置，只添加 extra_sources.txt 的额外源）")
+        PYEOF
+        python3 update_ok.py
+
+    # ── 7️⃣ 更新 ok海豚无18加（整合 extra_sources.txt） ──
+    - name: Update ok海豚无18加 with extra sources
+      run: |
+        cat > update_ok18.py << 'PYES'
+        import json
+        import os
+
+        src = "ok海豚无18加"
+        if not os.path.isfile(src):
+            print(f"[WARN] {src} 不存在，跳过更新")
+            exit(0)
+
+        with open(src, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        # 保持原有的 spider、wallpaper、logo 不变
+
+        if os.path.isfile('_extra_sources_list.json'):
+            with open('_extra_sources_list.json', 'r', encoding='utf-8') as f:
+                extra = json.load(f)
+                data.setdefault('lives', []).extend(extra)
+                print(f"[INFO] 已整合 {len(extra)} 条额外源到 ok海豚无18加")
+
+        with open(src, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+
+        print(f"[DONE] 已更新 {src}（保持原 spider 配置，只添加 extra_sources.txt 的额外源）"
+        PYES
+        python3 update_ok18.py
+
+    # ── 8️⃣ 生成 鱼壳海豚_local.json（本地 spider.jar 挂载） ──
     - name: Generate 鱼壳海豚_local.json
       run: |
-        cat > generate_local.py << 'PYEOF'
+        cat > generate_local.py << 'PYES'
         import json
         import os
 
@@ -219,15 +276,14 @@ jobs:
             json.dump(data, f, ensure_ascii=False, indent=4)
 
         print(f"[DONE] 已生成 {dst}")
-        print(f"[INFO] spider 路径: http://192.168.123.90:8080/spider.jar")
-        print(f"[INFO] 请确保 Termux 中已运行: cd ~ && python -m http.server 8080")
-        PYEOF
+        print(f"[INFO] spider 路径: http://https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/spider.jar")
+        PYES
         python3 generate_local.py
 
-    # ── 7️⃣ 生成 鱼壳海豚_gb.json（GitHub spider.jar 挂载） ──
+    # ── 9️⃣ 生成 鱼壳海豚_gb.json（GitHub spider.jar 挂载） ──
     - name: Generate 鱼壳海豚_gb.json
       run: |
-        cat > generate_gb.py << 'PYEOF'
+        cat > generate_gb.py << 'PYES'
         import json
         import os
 
@@ -235,14 +291,14 @@ jobs:
         dst = "鱼壳海豚_gb.json"
 
         if not os.path.isfile(src):
-            print(f"[WARN] {src} 不存在，跳过生成 GB 版本")
+            print(f"[WARN] {src} 不存在，跳过生成 GB 版本"
             exit(0)
 
         with open(src, 'r', encoding='utf-8') as f:
             data = json.load(f)
 
         data["spider"] = "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/spider.jar"
-        data["wallpaper"] = "http://tool.teyonds.com/api"
+        data["wallpaper"] = "http://table.teyonds.com/api"
         data["logo"] = "https://img.freepik.com/free-vector/cute-dolphin-swimming-cartoon-vector-icon-illustration-animal-nature-icon-isolated-flat-vector_138676-12582.jpg?semt=ais_hybrid&w=740&q=80"
 
         # 添加额外源
@@ -255,88 +311,73 @@ jobs:
         with open(dst, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
 
-        print(f"[DONE] 已生成 {dst}（GitHub 挂载）")
+        print(f"[DONE] 已生成 {dst}")
         print(f"[INFO] spider URL: https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/spider.jar")
-        PYEOF
+        PYES
         python3 generate_gb.py
 
-    # ── 9️⃣ 生成 ok海豚_gb.json（GitHub spider.jar 挂载） ──
-    - name: Generate ok海豚_gb.json
+    - name: Update 鱼壳海豚（整合 extra_sources.txt）
       run: |
-        cat > generate_ok_gb.py << 'PYEOF'
+        cat > update_fish.py << 'PYES'
         import json
         import os
 
-        src = "ok海豚"
-        dst = "ok海豚_gb.json"
-
+        src = "鱼壳海豚"
         if not os.path.isfile(src):
-            print(f"[WARN] {src} 不存在，跳过生成 GB 版本")
+            print(f"[WARN] {src} 不存在，跳过更新")
             exit(0)
 
         with open(src, 'r', encoding='utf-8') as f:
             data = json.load(f)
 
-        data["spider"] = "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/spider.jar"
-        data["wallpaper"] = "http://tool.teyonds.com/api"
-        data["logo"] = "https://img.freepik.com/free-vector/cute-dolphin-swimming-cartoon-vector-icon-illustration-animal-nature-icon-isolated-flat-vector_138676-12582.jpg?semt=ais_hybrid&w=740&q=80"
+        # 保持原有的 spider、wallpaper、logo 不变
+        # 只更新 lives 数组
 
-        # 添加额外源
         if os.path.isfile('_extra_sources_list.json'):
             with open('_extra_sources_list.json', 'r', encoding='utf-8') as f:
                 extra = json.load(f)
                 data.setdefault('lives', []).extend(extra)
-                print(f"[INFO] 已整合 {len(extra)} 条额外源到 ok海豚_gb 版本")
+                print(f"[INFO] 已整合 {len(extra)} 条额外源到 鱼壳海豚")
 
-        with open(dst, 'w', encoding='utf-8') as f:
+        with open(src, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
 
-        print(f"[DONE] 已生成 {dst}（GitHub 挂载）")
-        print(f"[INFO] spider URL: https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/spider.jar")
-        PYEOF
-        python3 generate_ok_gb.py
+        print(f"[DONE] 已更新 {src}（保持原 spider 配置，只添加 extra_sources.txt 的额外源）"
+        PYES
+        python3 update_fish.py
 
-    # ── 11️⃣ 生成 ok海豚无18加_gb.json（GitHub spider.jar 挂载） ──
-    - name: Generate ok海豚无18加_gb.json
+    - name: Update 鱼壳海豚无18加（整合 extra_sources.txt）
       run: |
-        cat > generate_ok18_gb.py << 'PYEOF'
+        cat > update_fish18.py << 'PYES'
         import json
         import os
 
-        src = "ok海豚无18加"
-        dst = "ok海豚无18加_gb.json"
-
+        src = "鱼壳海豚无18加"
         if not os.path.isfile(src):
-            print(f"[WARN] {src} 不存在，跳过生成 GB 版本")
+            print(f"[WARN] {src} 不存在，跳过更新")
             exit(0)
 
         with open(src, 'r', encoding='utf-8') as f:
             data = json.load(f)
 
-        data["spider"] = "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/spider.jar"
-        data["wallpaper"] = "http://tool.teyonds.com/api"
-        data["logo"] = "https://img.freepik.com/free-vector/cute-dolphin-swimming-cartoon-vector-icon-illustration-animal-nature-icon-isolated-flat-vector_138676-12582.jpg?semt=ais_hybrid&w=740&q=80"
+        # 保持原有的 spider、wallpaper、logo 不变
 
-        # 添加额外源
         if os.path.isfile('_extra_sources_list.json'):
             with open('_extra_sources_list.json', 'r', encoding='utf-8') as f:
                 extra = json.load(f)
                 data.setdefault('lives', []).extend(extra)
-                print(f"[INFO] 已整合 {len(extra)} 条额外源到 ok海豚无18加_gb 版本")
+                print(f"[INFO] 已整合 {len(extra)} 条额外源到 鱼壳海豚无18加")
 
-        with open(dst, 'w', encoding='utf-8') as f:
+        with open(src, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
 
-        print(f"[DONE] 已生成 {dst}（GitHub 挂载）")
-        print(f"[INFO] spider URL: https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/spider.jar")
-        PYEOF
-        python3 generate_ok18_gb.py
+        print(f"[DONE] 已更新 {src}（保持原 spider 配置，只添加 extra_sources.txt 的额外源）"
+        PYES
+        python3 update_fish18.py
 
-    # ── 12️⃣ 清理临时文件
     - name: Cleanup temporary files
-      run: |
+      run: 
         rm -f _extra_sources_list.json
-        rm -f read_extra.py add_sources.py generate_local.py generate_gb.py generate_ok_local.py generate_ok_gb.py generate_ok18_local.py generate_ok18_gb.py
         echo "[INFO] 已清理临时文件"
 
     - name: Commit and push changes
@@ -345,13 +386,11 @@ jobs:
         if git diff --staged --quiet; then
           echo "✅ 没有需要提交的改动"
         else
-          git commit -m "🔄 Sync: Update all configs with extra sources [$(date '+%Y-%m-%d %H:%M')]
+          git commit -m "🔄 Sync: Update configs with extra sources [$(date '+%Y-%m-%d %H:%M')]
           - 同步所有上游文件
-          - 整合 extra_sources.txt 的额外源
-          - 生成 鱼壳海豚_local.json（本地 spider.jar）
-          - 生成 鱼壳海豚_gb.json（GitHub spider.jar）
-          - 生成 ok海豚_gb.json（GitHub spider.jar）
-          - 生成 ok海豚无18加_gb.json（GitHub spider.jar）"
+          - 整合 extra_sources.txt 的额外源到 4 个文件
+          - 生成两个 spider.jar 版本（local 和 gb）
+          - 更新 3 个原始文件（只添加 extra_sources.txt 的额外源）"
           git push
           echo "🚀 提交已完成"
         fi
