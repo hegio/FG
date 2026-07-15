@@ -2824,6 +2824,12 @@
             "type": 0,
             "ua": "okhttp",
             "url": "http://121.143.97.131:9981/playlist/channels.m3u"
+        },
+        {
+            "name": "🐜YouTuBe",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://raw.githubusercontent.com/zzq1234567890/epg/refs/heads/main/youtubeworld.m3u"
         }
     ],
     "parses": [
