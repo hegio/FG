@@ -130,6 +130,18 @@
             "homePage": "https://fgblh.github.io/uhuj.github.io/youtube.html"
         },
         {
+            "key": "kkvm",
+            "name": "🐬可可影视.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/py/可可影视.py"
+        },
+        {
+            "key": "wkvm",
+            "name": "🐬悟空影视.py(关梯)[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/py/悟空影视.py"
+        },
+        {
             "key": "xmvm",
             "name": "🐬神马影视.py(关梯)[追剧]",
             "type": 3,
@@ -2832,10 +2844,10 @@
             "url": "http://121.143.97.131:9981/playlist/channels.m3u"
         },
         {
-            "name": "🐜YouTuBe",
+            "name": "🐜裤佬新",
             "type": 0,
             "ua": "okhttp",
-            "url": "https://raw.githubusercontent.com/zzq1234567890/epg/refs/heads/main/youtubeworld.m3u"
+            "url": "https://live.445569.xyz/live.m3u"
         },
         {
             "name": "🐜王子多情单源",
@@ -2862,10 +2874,10 @@
             "url": "http://121.143.97.131:9981/playlist/channels.m3u"
         },
         {
-            "name": "🐜YouTuBe",
+            "name": "🐜裤佬新",
             "type": 0,
             "ua": "okhttp",
-            "url": "https://raw.githubusercontent.com/zzq1234567890/epg/refs/heads/main/youtubeworld.m3u"
+            "url": "https://live.445569.xyz/live.m3u"
         }
     ],
     "parses": [
