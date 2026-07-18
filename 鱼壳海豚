@@ -2848,6 +2848,18 @@
             "type": 0,
             "ua": "okhttp",
             "url": "https://live.445569.xyz/live.m3u"
+        },
+        {
+            "name": "🐜tianze889",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://raw.githubusercontent.com/tianze889/dstvupn/refs/heads/main/tvupan.txt"
+        },
+        {
+            "name": "🐜yihad168",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://raw.githubusercontent.com/yihad168/tv/refs/heads/main/live.m3u"
         }
     ],
     "parses": [
