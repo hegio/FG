@@ -4,4 +4,4 @@
 🐜abszmZBY,https://raw.githubusercontent.com/SWCZ56/abszm-zby/refs/heads/main/zby.m3u
 🐜Supprise,https://raw.githubusercontent.com/Supprise0901/TVBox_live/refs/heads/main/live.txt
 🐜韩国节目,http://121.143.97.131:9981/playlist/channels.m3u
-🐜YouTuBe,https://raw.githubusercontent.com/zzq1234567890/epg/refs/heads/main/youtubeworld.m3u
+🐜裤佬新,https://live.445569.xyz/live.m3u
