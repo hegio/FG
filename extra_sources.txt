@@ -5,3 +5,4 @@
 🐜Supprise,https://raw.githubusercontent.com/Supprise0901/TVBox_live/refs/heads/main/live.txt
 🐜韩国节目,http://121.143.97.131:9981/playlist/channels.m3u
 🐜裤佬新,https://live.445569.xyz/live.m3u
+🐜tianze889,https://raw.githubusercontent.com/tianze889/dstvupn/refs/heads/main/tvupan.txt
