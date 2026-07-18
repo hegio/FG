@@ -6,3 +6,4 @@
 🐜韩国节目,http://121.143.97.131:9981/playlist/channels.m3u
 🐜裤佬新,https://live.445569.xyz/live.m3u
 🐜tianze889,https://raw.githubusercontent.com/tianze889/dstvupn/refs/heads/main/tvupan.txt
+🐜yihad168,https://raw.githubusercontent.com/yihad168/tv/refs/heads/main/live.m3u
