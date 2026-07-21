@@ -61,3 +61,4 @@ YY轮播,https://sub.ottiptv.cc/yylunbo.m3u
 🐜裤佬新,https://live.445569.xyz/live.m3u
 🐜tianze889,https://raw.githubusercontent.com/tianze889/dstvupn/refs/heads/main/tvupan.txt
 🐜yihad168,https://raw.githubusercontent.com/yihad168/tv/refs/heads/main/live.m3u
+🐜Xldy,https://raw.githubusercontent.com/xiaolvdouya/zhiboyuan/main/DIYP%20fanmingming.txt
