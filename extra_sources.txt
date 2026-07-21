@@ -8,3 +8,4 @@
 🐜tianze889,https://raw.githubusercontent.com/tianze889/dstvupn/refs/heads/main/tvupan.txt
 🐜yihad168,https://raw.githubusercontent.com/yihad168/tv/refs/heads/main/live.m3u
 🐜海哥测试,http://ge.html-5.me/ii/%E6%B5%B7%E5%93%A5%E6%BA%90%E7%A0%81%E6%B5%8B%E8%AF%95.txt
+🐜测试,http://pl.ru-tv.site/a5da3488/40d30ea3/tv.m3u
