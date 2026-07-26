@@ -218,6 +218,12 @@
             "api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/py/神马影视.py"
         },
         {
+            "key": "4K影视",
+            "name": "🐬4K影视.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/py/4K影视.py"
+        },
+        {
             "key": "ddyy",
             "name": "🐬低端影视.py[追剧]",
             "type": 3,
@@ -1049,6 +1055,12 @@
             "api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/py/采集聚合成人.py"
         },
         {
+            "key": "麻豆社",
+            "name": "🐬麻豆社.py｜🔞[成人]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/py/麻豆社.py"
+        },
+        {
             "key": "prsd",
             "name": "🐬怦然心动.py｜🔞[成人]",
             "type": 3,
@@ -1143,6 +1155,12 @@
             "name": "🐬18AV.py｜🔞(关梯)[成人]",
             "type": 3,
             "api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/py/18AV.py"
+        },
+        {
+            "key": "8X8X",
+            "name": "🐬8X8X.py｜🔞[成人]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/py/8X8X.py"
         },
         {
             "key": "Xvideos",
@@ -2223,7 +2241,7 @@
         },
         {
             "key": "哆啦新番社",
-            "name": "哆啦｜新番社",
+            "name": "哆啦｜新番社[动漫]",
             "type": 3,
             "api": "csp_XBPQ",
             "style": {
@@ -2233,14 +2251,14 @@
         },
         {
             "key": "Anime1",
-            "name": "A1｜动漫",
+            "name": "A1[动漫]",
             "type": 3,
             "api": "https://cnb.cool/fish2018/xs/-/git/raw/main/js/drpy2.min.js",
             "ext": "https://cnb.cool/fish2018/xs/-/git/raw/main/js/Anime1.js"
         },
         {
             "key": "漫国动漫",
-            "name": "漫国丨动漫",
+            "name": "漫国[动漫]",
             "type": 3,
             "searchable": 1,
             "api": "csp_AppSy",
@@ -2253,7 +2271,7 @@
         },
         {
             "key": "方舟动漫",
-            "name": "方舟丨动漫",
+            "name": "方舟[动漫]",
             "type": 3,
             "searchable": 1,
             "api": "csp_AppGet",
@@ -2265,7 +2283,7 @@
         },
         {
             "key": "曼波动漫",
-            "name": "曼波｜动漫",
+            "name": "曼波[动漫]",
             "type": 3,
             "searchable": 1,
             "api": "csp_AppGet",
@@ -2277,7 +2295,7 @@
         },
         {
             "key": "咕咕动漫",
-            "name": "咕咕｜动漫",
+            "name": "咕咕[动漫]",
             "type": 3,
             "searchable": 1,
             "api": "csp_AppGet",
@@ -2289,21 +2307,21 @@
         },
         {
             "key": "巴士动漫",
-            "name": "巴士｜动漫",
+            "name": "巴士[动漫]",
             "type": 3,
             "api": "csp_XYQHiker",
             "ext": "https://cnb.cool/fish2018/xs/-/git/raw/main/XYQHiker/巴士动漫.json"
         },
         {
             "key": "路漫漫",
-            "name": "路漫漫｜动漫",
+            "name": "路漫漫[动漫]",
             "type": 3,
             "api": "https://cnb.cool/fish2018/xs/-/git/raw/main/js/drpy2.min.js",
             "ext": "https://cnb.cool/fish2018/xs/-/git/raw/main/js/路漫漫.js"
         },
         {
             "key": "去看吧",
-            "name": "去看吧｜动漫",
+            "name": "去看吧[动漫]",
             "type": 3,
             "api": "https://cnb.cool/fish2018/xs/-/git/raw/main/js/drpy2.min.js",
             "ext": "https://cnb.cool/fish2018/xs/-/git/raw/main/js/去看吧.js"
@@ -2635,7 +2653,7 @@
         },
         {
             "key": "哔哩哔哩听书",
-            "name": "哔哩｜听书",
+            "name": "哔哩[听书]",
             "type": 3,
             "api": "csp_Bili",
             "searchable": 0,
@@ -2688,6 +2706,13 @@
             "url": "https://gh-proxy.org/https://github.com/bang359/dsj/raw/main/dsjcs.txt"
         },
         {
+            "name": "🐬Nettv",
+            "type": 0,
+            "playerType": 2,
+            "ua": "okhttp",
+            "url": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/Nettv.txt"
+        },
+        {
             "name": "🐬地方直播",
             "type": 0,
             "ua": "okhttp/5.3.2",
@@ -2734,12 +2759,6 @@
             "type": 0,
             "ua": "okhttp/5.3.2",
             "url": "https://d.kstore.dev/download/9565/小新TV.txt"
-        },
-        {
-            "name": "🐬北美长城源",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://ha.msbot.dpdns.org/wall.php"
         },
         {
             "name": "🐬台湾台",
@@ -2866,6 +2885,17 @@
             "type": 0,
             "ua": "okhttp",
             "url": "https://php.946985.filegear-sg.me/jackTV.m3u"
+        },
+        {
+            "name": "🐬海豚佬🔞午夜剧场(挂梯)",
+            "type": 0,
+            "playerType": 2,
+            "epg": "https://epg.112114.xyz/?ch={name}&date={date}",
+            "logo": "https://epg.112114.xyz/logo/{name}.png",
+            "url": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/午夜剧场.txt",
+            "header": {
+                "X-Api-key": "8692bd33270440d4d2941b814b81a25a1eb84a7205532971714c4299c57449e0..0..1738210005..5cf2c4ad-043b-4234-83a2-e84ae917"
+            }
         },
         {
             "name": "🐬海豚佬xxx视频资源🔞",
