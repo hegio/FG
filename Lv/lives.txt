@@ -28,7 +28,6 @@
 🐬中港台直播源,https://t.freetv.fun/m3u/playlist_all.txt
 🐬4GTV(梯子台湾节点)720p,https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/4gtv.txt
 🐬4GTV怡淳酒店(梯子台湾节点)720p,http://xtvantsc.xyz/4gtv.txt
-🐬4GTV(梯子任何节点)1080p,https://ha.msbot.dpdns.org/4gtv_api.php
 🐬4GTV(免梯子)1080p,http://4gtv.cnlive.club/4gtv.m3u
 🐬安博(梯子)卡顿 有🔞,https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/安博.txt
 🐬jackTV(梯子),https://php.946985.filegear-sg.me/jackTV.m3u
