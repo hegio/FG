@@ -2772,6 +2772,18 @@
             "url": "http://pl.ru-tv.site/a5da3488/40d30ea3/tv.m3u"
         },
         {
+            "name": "🐜4gtv",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://raw.githubusercontent.com/a2256569/tv/refs/heads/main/4gtv.txt"
+        },
+        {
+            "name": "🐜Kimentanm",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://raw.githubusercontent.com/Kimentanm/aptv/master/m3u/iptv.m3u"
+        },
+        {
             "name": "🐜王子多情单源",
             "type": 0,
             "ua": "okhttp",
@@ -2824,6 +2836,18 @@
             "type": 0,
             "ua": "okhttp",
             "url": "http://pl.ru-tv.site/a5da3488/40d30ea3/tv.m3u"
+        },
+        {
+            "name": "🐜4gtv",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://raw.githubusercontent.com/a2256569/tv/refs/heads/main/4gtv.txt"
+        },
+        {
+            "name": "🐜Kimentanm",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://raw.githubusercontent.com/Kimentanm/aptv/master/m3u/iptv.m3u"
         }
     ],
     "parses": [
