@@ -187,13 +187,13 @@ jobs:
         PYEOF
         python3 add_sources.py
 
-    - name: Add extra sources to ok海豚, ok海豚无18加, 鱼壳海豚
+    - name: Add extra sources to ok海豚, ok海豚无18加, 鱼壳海豚18, 鱼壳海豚
       run: |
         cat > add_extra_to_files.py << 'PYEOF'
         import json
         import os
 
-        target_files = ["ok海豚", "ok海豚无18加", "鱼壳海豚"]
+        target_files = ["ok海豚", "ok海豚无18加", "鱼壳海豚18", "鱼壳海豚"]
 
         if not os.path.isfile('_extra_sources_list.json'):
             print("[INFO] _extra_sources_list.json 不存在，跳过")
