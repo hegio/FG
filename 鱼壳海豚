@@ -2807,6 +2807,12 @@
             "type": 0,
             "ua": "okhttp",
             "url": "https://raw.githubusercontent.com/Kimentanm/aptv/master/m3u/iptv.m3u"
+        },
+        {
+            "name": "🐜夏夏",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "http://bo.zya.me/i/夏夏秒播.txt"
         }
     ],
     "parses": [
