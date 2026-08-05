@@ -11,3 +11,4 @@
 🐜4gtv,https://raw.githubusercontent.com/a2256569/tv/refs/heads/main/4gtv.txt
 🐜Kimentanm,https://raw.githubusercontent.com/Kimentanm/aptv/master/m3u/iptv.m3u
 🐜夏夏,http://bo.zya.me/i/夏夏秒播.txt
+🐜atryffad,http://atryffad.usa3.345123.xyz/57.txt
