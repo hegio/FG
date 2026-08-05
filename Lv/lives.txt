@@ -65,3 +65,4 @@ YY轮播,https://sub.ottiptv.cc/yylunbo.m3u
 🐜俄罗斯tv,http://pl.ru-tv.site/a5da3488/40d30ea3/tv.m3u
 🐜4gtv,https://raw.githubusercontent.com/a2256569/tv/refs/heads/main/4gtv.txt
 🐜Kimentanm,https://raw.githubusercontent.com/Kimentanm/aptv/master/m3u/iptv.m3u
+🐜夏夏,http://bo.zya.me/i/夏夏秒播.txt
