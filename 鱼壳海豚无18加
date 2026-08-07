@@ -1422,6 +1422,12 @@
             "name": "🐬ZLYS.py[追剧]",
             "type": 3,
             "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/ZLYS.py"
+        },
+        {
+            "key": "91动漫",
+            "name": "🐬91 动漫.py[动漫]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/91 动漫.py"
         }
     ],
     "lives": [
