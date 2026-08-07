@@ -67,3 +67,4 @@ YY轮播,https://sub.ottiptv.cc/yylunbo.m3u
 🐜Kimentanm,https://raw.githubusercontent.com/Kimentanm/aptv/master/m3u/iptv.m3u
 🐜夏夏,http://bo.zya.me/i/夏夏秒播.txt
 🐜atryffad,http://atryffad.usa3.345123.xyz/57.txt
+🐜瑟瑟,http://gh-proxy.com/https://github.com/ge6bu6/1/blob/main/1.txt
