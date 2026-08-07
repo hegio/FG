@@ -1914,6 +1914,36 @@
             "searchable": 0,
             "filterable": 0,
             "changeable": 0
+        },
+        {
+            "key": "freeok",
+            "name": "🐬FreeOK.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/FreeOK.py"
+        },
+        {
+            "key": "hjsqn",
+            "name": "🐬HJSQN.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/HJSQN.py"
+        },
+        {
+            "key": "rouvideo",
+            "name": "🐬RouVideo.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/RouVideo.py"
+        },
+        {
+            "key": "vv",
+            "name": "🐬VV.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/VV.py"
+        },
+        {
+            "key": "zlys",
+            "name": "🐬ZLYS.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/ZLYS.py"
         }
     ],
     "lives": [
