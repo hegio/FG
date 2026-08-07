@@ -1,11 +1,8 @@
 name: Sync PY Plugins to JSON
 
 on:
-  push:
-    paths:
-      - 'PY/**'
   schedule:
-    - cron: '0 2 * * *'
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 permissions:
@@ -30,19 +27,15 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Scan PY directory and sync to JSON files
+      - name: Read py.txt and sync to JSON files
         run: |
           python3 << 'PYEOF'
           import os
           import json
           import re
-          import urllib.request
 
-          REPO = "hegio/FG"
-          BRANCH = "main"
-          PY_DIR = "PY"
+          PY_TXT = "Lv/py.txt"
           TARGET_FILES = ["鱼壳海豚无18加", "ok海豚无18加"]
-          RAW_BASE = f"https://ghfast.top/https://raw.githubusercontent.com/{REPO}/{BRANCH}/{PY_DIR}"
           PY_API_PATTERN = re.compile(r'/PY/[^/]+\.py', re.IGNORECASE)
 
           # 分类推断规则
@@ -73,43 +66,39 @@ jobs:
                   key = "py" + str(hash(base) % 10000)
               return key[:20]
 
-          def fetch_py_files():
-              api_url = f"https://api.github.com/repos/{REPO}/contents/{PY_DIR}?ref={BRANCH}"
-              headers = {
-                  'User-Agent': 'Mozilla/5.0',
-                  'Accept': 'application/vnd.github.v3+json'
-              }
-              token = os.environ.get('GITHUB_TOKEN')
-              if token:
-                  headers['Authorization'] = f'token {token}'
-
-              try:
-                  req = urllib.request.Request(api_url, headers=headers)
-                  with urllib.request.urlopen(req, timeout=15) as resp:
-                      items = json.loads(resp.read().decode('utf-8'))
-                  py_files = []
-                  for item in items:
-                      if item.get('type') == 'file' and item['name'].endswith('.py'):
-                          py_files.append(item['name'])
-                  return py_files
-              except Exception as e:
-                  print(f"[WARN] GitHub API 获取失败: {e}，降级扫描本地目录")
-                  if os.path.isdir(PY_DIR):
-                      return [f for f in os.listdir(PY_DIR) if f.endswith('.py')]
-                  return []
-
-          def build_expected_entries(py_files):
+          def read_py_txt():
+              """读取 py.txt，返回 {api_url: entry} 映射"""
               entries = {}
-              for filename in py_files:
-                  category = detect_category(filename)
-                  key = generate_key(filename)
-                  api_url = f"{RAW_BASE}/{filename}"
-                  entries[api_url] = {
-                      "key": key,
-                      "name": f"🐬{filename}[{category}]",
-                      "type": 3,
-                      "api": api_url
-                  }
+              if not os.path.isfile(PY_TXT):
+                  print(f"[WARN] {PY_TXT} 不存在")
+                  return entries
+
+              with open(PY_TXT, 'r', encoding='utf-8') as f:
+                  for line in f:
+                      line = line.strip()
+                      if not line or line.startswith('#'):
+                          continue
+                      if ',' not in line:
+                          continue
+                      parts = line.split(',', 1)
+                      if len(parts) != 2:
+                          continue
+                      filename = parts[0].strip()
+                      api_url = parts[1].strip()
+                      if not filename or not api_url:
+                          continue
+
+                      category = detect_category(filename)
+                      key = generate_key(filename)
+                      entries[api_url] = {
+                          "key": key,
+                          "name": f"🐬{filename}[{category}]",
+                          "type": 3,
+                          "api": api_url
+                      }
+                      print(f"[INFO] 解析: {filename} -> {api_url}")
+
+              print(f"[DONE] py.txt 共 {len(entries)} 个条目")
               return entries
 
           def is_py_plugin(site):
@@ -131,19 +120,19 @@ jobs:
               sites = data.get('sites', [])
               modified = False
 
-              # 1. 删除：sites 中存在但 PY 中已不存在的 py 插件
+              # 1. 删除：sites 中存在但 py.txt 中已不存在的 py 插件
               new_sites = []
               removed = 0
               for site in sites:
                   api = site.get('api', '')
                   if is_py_plugin(site) and api not in expected_entries:
-                      print(f"[DEL] 删除 {site.get('name', site.get('key', '?'))} (PY文件已不存在)")
+                      print(f"[DEL] 删除 {site.get('name', site.get('key', '?'))} (py.txt 中已不存在)")
                       removed += 1
                       modified = True
                   else:
                       new_sites.append(site)
 
-              # 2. 添加：PY 中存在但 sites 中还没有的
+              # 2. 添加：py.txt 中存在但 sites 中还没有的
               existed_apis = {s.get('api', '') for s in new_sites}
               added = 0
               for api_url, entry in expected_entries.items():
@@ -164,17 +153,8 @@ jobs:
               return modified
 
           def main():
-              print("[START] 扫描 PY 目录并双向同步...")
-              py_files = fetch_py_files()
-
-              if not py_files:
-                  print("[INFO] 未找到 .py 文件，将清理所有 PY 插件条目")
-
-              print(f"[INFO] 当前 PY 目录有 {len(py_files)} 个 .py 文件:")
-              for pf in py_files:
-                  print(f"  - {pf}")
-
-              expected = build_expected_entries(py_files)
+              print("[START] 读取 py.txt 并双向同步...")
+              expected = read_py_txt()
 
               modified_any = False
               for target in TARGET_FILES:
@@ -189,8 +169,6 @@ jobs:
           if __name__ == '__main__':
               main()
           PYEOF
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Commit and push changes
         run: |
@@ -198,7 +176,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "✅ 没有需要提交的改动"
           else
-            git commit -m "🔄 Auto-sync PY plugins [$(date '+%Y-%m-%d %H:%M')]"                        -m "- 自动侦测 PY 目录变动（增删 .py 文件）"                        -m "- 双向同步到 鱼壳海豚无18加 / ok海豚无18加"
+            git commit -m "🔄 Auto-sync PY plugins [$(date '+%Y-%m-%d %H:%M')]"                        -m "- 根据 Lv/py.txt 同步 PY 插件到目标 JSON"                        -m "- 双向同步：增删均自动处理"
             git push
             echo "🚀 提交已完成"
           fi
