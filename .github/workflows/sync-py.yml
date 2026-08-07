@@ -37,6 +37,7 @@ jobs:
           PY_TXT = "Lv/py.txt"
           TARGET_FILES = ["鱼壳海豚无18加", "ok海豚无18加"]
           PY_API_PATTERN = re.compile(r'/PY/[^/]+\.py', re.IGNORECASE)
+          MANUAL_GROUP = "手动"
 
           # 分类推断规则
           CATEGORY_RULES = [
@@ -67,7 +68,7 @@ jobs:
               return key[:20]
 
           def read_py_txt():
-              """读取 py.txt，返回 {api_url: entry} 映射"""
+              """读取 py.txt，返回 {api_url: entry} 映射，条目均标记为 group=手动"""
               entries = {}
               if not os.path.isfile(PY_TXT):
                   print(f"[WARN] {PY_TXT} 不存在")
@@ -94,9 +95,10 @@ jobs:
                           "key": key,
                           "name": f"🐬{filename}[{category}]",
                           "type": 3,
-                          "api": api_url
+                          "api": api_url,
+                          "group": MANUAL_GROUP
                       }
-                      print(f"[INFO] 解析: {filename} -> {api_url}")
+                      print(f"[INFO] 解析: {filename} -> {api_url} [group={MANUAL_GROUP}]")
 
               print(f"[DONE] py.txt 共 {len(entries)} 个条目")
               return entries
@@ -104,6 +106,10 @@ jobs:
           def is_py_plugin(site):
               api = site.get('api', '')
               return bool(PY_API_PATTERN.search(api))
+
+          def is_manual_py(site):
+              """判断是否为手动管理的 PY 插件"""
+              return is_py_plugin(site) and site.get('group') == MANUAL_GROUP
 
           def sync_json(target_file, expected_entries):
               if not os.path.isfile(target_file):
@@ -120,25 +126,25 @@ jobs:
               sites = data.get('sites', [])
               modified = False
 
-              # 1. 删除：sites 中存在但 py.txt 中已不存在的 py 插件
+              # 1. 删除：只删除 group=="手动" 且 py.txt 中已不存在的 PY 插件
               new_sites = []
               removed = 0
               for site in sites:
                   api = site.get('api', '')
-                  if is_py_plugin(site) and api not in expected_entries:
-                      print(f"[DEL] 删除 {site.get('name', site.get('key', '?'))} (py.txt 中已不存在)")
+                  if is_manual_py(site) and api not in expected_entries:
+                      print(f"[DEL] 删除手动条目 {site.get('name', site.get('key', '?'))} (py.txt 中已不存在)")
                       removed += 1
                       modified = True
                   else:
                       new_sites.append(site)
 
-              # 2. 添加：py.txt 中存在但 sites 中还没有的
+              # 2. 添加：py.txt 中存在但 sites 中还没有的（检查所有 sites 的 api 去重）
               existed_apis = {s.get('api', '') for s in new_sites}
               added = 0
               for api_url, entry in expected_entries.items():
                   if api_url not in existed_apis:
                       new_sites.append(entry)
-                      print(f"[ADD] 添加 {entry['name']} 到 {target_file}")
+                      print(f"[ADD] 添加 {entry['name']} [group={MANUAL_GROUP}] 到 {target_file}")
                       added += 1
                       modified = True
 
@@ -146,14 +152,14 @@ jobs:
                   data['sites'] = new_sites
                   with open(target_file, 'w', encoding='utf-8') as f:
                       json.dump(data, f, ensure_ascii=False, indent=4)
-                  print(f"[DONE] {target_file}: 删除 {removed} 个，新增 {added} 个")
+                  print(f"[DONE] {target_file}: 删除 {removed} 个手动条目，新增 {added} 个手动条目")
               else:
                   print(f"[INFO] {target_file}: 无需变更")
 
               return modified
 
           def main():
-              print("[START] 读取 py.txt 并双向同步...")
+              print("[START] 读取 py.txt 并同步手动 PY 插件...")
               expected = read_py_txt()
 
               modified_any = False
@@ -176,7 +182,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "✅ 没有需要提交的改动"
           else
-            git commit -m "🔄 Auto-sync PY plugins [$(date '+%Y-%m-%d %H:%M')]"                        -m "- 根据 Lv/py.txt 同步 PY 插件到目标 JSON"                        -m "- 双向同步：增删均自动处理"
+            git commit -m "🔄 Auto-sync PY plugins [$(date '+%Y-%m-%d %H:%M')]"                        -m "- 根据 Lv/py.txt 同步手动 PY 插件到目标 JSON"                        -m "- 只操作 group=手动的 PY 插件条目，不影响其他已有条目"
             git push
             echo "🚀 提交已完成"
           fi
