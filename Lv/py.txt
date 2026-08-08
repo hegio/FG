@@ -1,5 +1,4 @@
 91 动漫.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/91 动漫.py
 FreeOK.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/FreeOK.py
 VV.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/VV.py
-XChina.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/XChina.py
 ZLYS.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/ZLYS.py
