@@ -2833,6 +2833,12 @@
             "url": "https://raw.githubusercontent.com/fafa002/yf2025/refs/heads/main/yiyifafa.txt"
         },
         {
+            "name": "🐜央卫体育",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://raw.githubusercontent.com/jn950/live/refs/heads/main/tv/holive.m3u"
+        },
+        {
             "name": "🐜王子多情单源",
             "type": 0,
             "ua": "okhttp",
@@ -2915,6 +2921,12 @@
             "type": 0,
             "ua": "okhttp",
             "url": "https://raw.githubusercontent.com/fafa002/yf2025/refs/heads/main/yiyifafa.txt"
+        },
+        {
+            "name": "🐜央卫体育",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://raw.githubusercontent.com/jn950/live/refs/heads/main/tv/holive.m3u"
         }
     ],
     "parses": [
