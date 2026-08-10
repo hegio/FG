@@ -686,6 +686,69 @@
             "name": "🐬[音乐]DJ呦呦.py",
             "type": 3,
             "api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/py/DJ呦呦.py"
+        },
+        {
+            "key": "3bmm_spider",
+            "name": "🐬3bmm_spider.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/3bmm_spider.py",
+            "group": "手动"
+        },
+        {
+            "key": "51duanju",
+            "name": "🐬51duanju.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/51duanju.py",
+            "group": "手动"
+        },
+        {
+            "key": "91动漫",
+            "name": "🐬91 动漫.py[动漫]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/91 动漫.py",
+            "group": "手动"
+        },
+        {
+            "key": "freeok",
+            "name": "🐬FreeOK.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/FreeOK.py",
+            "group": "手动"
+        },
+        {
+            "key": "moovie影牛",
+            "name": "🐬Moovie 影牛.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/Moovie 影牛.py",
+            "group": "手动"
+        },
+        {
+            "key": "vv",
+            "name": "🐬VV.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/VV.py",
+            "group": "手动"
+        },
+        {
+            "key": "zlys",
+            "name": "🐬ZLYS.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/ZLYS.py",
+            "group": "手动"
+        },
+        {
+            "key": "py_weishitv",
+            "name": "🐬py_weishitv.py[直播]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/py_weishitv.py",
+            "group": "手动"
+        },
+        {
+            "key": "魑魅魍魉_tvbox源",
+            "name": "🐬魑魅魍魉_TVBox源.py[直播]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/魑魅魍魉_TVBox源.py",
+            "group": "手动"
         }
     ],
     "parses": [
