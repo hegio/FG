@@ -688,13 +688,6 @@
             "api": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/py/DJ呦呦.py"
         },
         {
-            "key": "3bmm_spider",
-            "name": "🐬3bmm_spider.py[追剧]",
-            "type": 3,
-            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/3bmm_spider.py",
-            "group": "手动"
-        },
-        {
             "key": "51duanju",
             "name": "🐬51duanju.py[追剧]",
             "type": 3,
@@ -713,13 +706,6 @@
             "name": "🐬FreeOK.py[追剧]",
             "type": 3,
             "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/FreeOK.py",
-            "group": "手动"
-        },
-        {
-            "key": "moovie影牛",
-            "name": "🐬Moovie 影牛.py[追剧]",
-            "type": 3,
-            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/Moovie 影牛.py",
             "group": "手动"
         },
         {
