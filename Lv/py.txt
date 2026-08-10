@@ -1,4 +1,9 @@
+3bmm_spider.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/3bmm_spider.py
+51duanju.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/51duanju.py
 91 动漫.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/91 动漫.py
 FreeOK.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/FreeOK.py
+Moovie 影牛.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/Moovie 影牛.py
 VV.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/VV.py
 ZLYS.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/ZLYS.py
+py_weishitv.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/py_weishitv.py
+魑魅魍魉_TVBox源.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/魑魅魍魉_TVBox源.py
