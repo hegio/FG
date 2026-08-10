@@ -735,6 +735,27 @@
             "type": 3,
             "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/魑魅魍魉_TVBox源.py",
             "group": "手动"
+        },
+        {
+            "key": "aniget",
+            "name": "🐬aniget.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/aniget.py",
+            "group": "手动"
+        },
+        {
+            "key": "瓜子影视",
+            "name": "🐬瓜子影视.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/瓜子影视.py",
+            "group": "手动"
+        },
+        {
+            "key": "龙禁漫",
+            "name": "🐬龙禁漫.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/龙禁漫.py",
+            "group": "手动"
         }
     ],
     "parses": [
