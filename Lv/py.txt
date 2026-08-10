@@ -1,4 +1,3 @@
-3bmm_spider.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/3bmm_spider.py
 51duanju.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/51duanju.py
 91 动漫.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/91 动漫.py
 FreeOK.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/FreeOK.py
