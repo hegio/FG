@@ -5,5 +5,6 @@ VV.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/VV.p
 ZLYS.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/ZLYS.py
 aniget.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/aniget.py
 py_weishitv.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/py_weishitv.py
+瓜子影视.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/瓜子影视.py
 魑魅魍魉_TVBox源.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/魑魅魍魉_TVBox源.py
 龙禁漫.py,https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/龙禁漫.py
