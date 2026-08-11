@@ -15,3 +15,12 @@
 🐜瑟瑟,http://gh-proxy.com/https://github.com/ge6bu6/1/blob/main/1.txt
 🐜易发源,https://raw.githubusercontent.com/fafa002/yf2025/refs/heads/main/yiyifafa.txt
 🐜央卫体育,https://raw.githubusercontent.com/jn950/live/refs/heads/main/tv/holive.m3u
+🐜skyrealmus,https://raw.githubusercontent.com/skyrealmus/iptv-consolidated-playlist/refs/heads/main/playlist.m3u
+🐜1989,https://iptv.1989.click/playlist.m3u
+🐜doms9,https://raw.githubusercontent.com/doms9/iptv/refs/heads/default/M3U8/base.m3u8
+🐜YueChan,https://raw.githubusercontent.com/YueChan/Live/refs/heads/main/Global.m3u
+🐜kimwang1978,https://raw.githubusercontent.com/kimwang1978/collect-txt/refs/heads/main/others_output.txt
+🐜kimwang1978,https://raw.githubusercontent.com/kimwang1978/collect-txt/refs/heads/main/bbxx.txt
+🐜Free-TV,https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8
+🐜ilook,https://ilook.epg.one/5CM5SY98BF24PL/2
+🐜iptv-org,https://iptv-org.github.io/iptv/index.m3u
