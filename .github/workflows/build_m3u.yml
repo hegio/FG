@@ -29,7 +29,7 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add 鱼豚无18b.m3u
-          git diff-index --quiet HEAD || git commit -m "Auto Update: 鱼豚无18b.m3u (每24小时自动更新，含URL存活探测)"
+          git diff-index --quiet HEAD || git commit -m "Auto Update: 鱼豚无18b.m3u (每48小时自动更新，含URL存活探测)"
           # 关键：先拉取远程更新，避免冲突
           git pull --rebase origin main || git pull origin main || true
           git push
