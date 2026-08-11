@@ -6,9 +6,6 @@ on:
     - cron: '0 */24 * * *'
   workflow_dispatch: # 允许在 GitHub Actions 页面手动点击触发
 
-import concurrent.futures 
-import urllib.request
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -30,6 +27,7 @@ jobs:
           import os
           import re
           import urllib.request
+          import concurrent.futures
 
           # 需要处理的目标分类名称（按您指定的顺序排序）
           target_names = [
@@ -75,6 +73,21 @@ jobs:
               except Exception as e:
                   print(f"抓取链接失败 {url}: {e}")
                   return ""
+                      
+               def probe_url(url, timeout=5):
+                  """快速探测 URL 是否可访问"""
+                  try:
+                      req = urllib.request.Request(url, method='HEAD', headers={'User-Agent': '...'})
+                      with urllib.request.urlopen(req, timeout=timeout) as resp:
+                          return resp.status < 400
+                  except:
+                      try:
+                          req = urllib.request.Request(url, headers={'User-Agent': '...'})
+                          with urllib.request.urlopen(req, timeout=timeout) as resp:
+                              _ = resp.read(1024)
+                              return True
+                      except:
+                          return False
 
           def clean_group_name(name):
               """清理主分类名称中的敏感标识"""
@@ -253,23 +266,9 @@ jobs:
                       seen.add(key)
                       unique_channels.append(ch)
 
-                      
-               def probe_url(url, timeout=5):
-                  """快速探测 URL 是否可访问"""
-                  try:
-                      req = urllib.request.Request(url, method='HEAD', headers={'User-Agent': '...'})
-                      with urllib.request.urlopen(req, timeout=timeout) as resp:
-                          return resp.status < 400
-                  except:
-                      try:
-                          req = urllib.request.Request(url, headers={'User-Agent': '...'})
-                          with urllib.request.urlopen(req, timeout=timeout) as resp:
-                              _ = resp.read(1024)
-                              return True
-                      except:
-                          return False
+              print(f"去重后共 {len(unique_channels)} 个频道，开始 URL 可用性探测...")
 
-              # 在输出前过滤
+              # 4.在输出前过滤
               alive_channels = []
               with concurrent.futures.ThreadPoolExecutor(max_workers=30) as pool:
                   futures = {pool.submit(probe_url, ch['url']): ch for ch in all_channels}
@@ -280,7 +279,10 @@ jobs:
                       else:
                           print(f"  [DEAD] {ch['name']}")
 
-              output_filename = "鱼豚无18a.m3u"
+              print(f"探测完成: 存活 {len(alive_channels)} 个，失效 {dead_count} 个")
+
+              # 5. 输出 M3U
+              output_filename = "鱼豚无18b.m3u"
               print(f"正在写入 {output_filename}...")
               try:
                   with open(output_filename, "w", encoding="utf-8") as f:
@@ -288,7 +290,7 @@ jobs:
                       for ch in unique_channels:
                           f.write(f'#EXTINF:-1 group-title="{ch["group_title"]}",{ch["name"]}\n')
                           f.write(f'{ch["url"]}\n')
-                  print("M3U 播放列表更新成功！")
+                  print(f"M3U 播放列表更新成功！共 {len(alive_channels)} 个有效频道")
               except Exception as e:
                   print(f"写入文件失败: {e}")
 
@@ -306,6 +308,6 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add 鱼豚无18a.m3u
-          git diff-index --quiet HEAD || git commit -m "Auto Update: 鱼豚无18a.m3u (每18小时自动更新)"
+          git add 鱼豚无18b.m3u
+          git diff-index --quiet HEAD || git commit -m "Auto Update: 鱼豚无18b.m3u (每18小时自动更新，含URL存活探测)"
           git push
