@@ -2,7 +2,7 @@ name: Auto Update M3U Playlist
 
 on:
   schedule:
-    - cron: '0 */24 * * *'
+    - cron: '0 */48 * * *'
   workflow_dispatch:
 
 permissions:
