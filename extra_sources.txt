@@ -23,3 +23,4 @@
 🐜ilook,https://ilook.epg.one/5CM5SY98BF24PL/2
 🐜iptv-org,https://iptv-org.github.io/iptv/index.m3u
 🐜ljlfct01,https://raw.githubusercontent.com/ljlfct01/ljlfct01.github.io/refs/heads/main/zb
+🐜youtube,https://x.maflya.com/api/proxy?target=https://raw.githubusercontent.com/mhmdxahmd/mafly/refs/heads/main/youtube.m3u
