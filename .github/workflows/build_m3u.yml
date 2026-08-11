@@ -6,6 +6,9 @@ on:
     - cron: '0 */24 * * *'
   workflow_dispatch: # 允许在 GitHub Actions 页面手动点击触发
 
+import concurrent.futures 
+import urllib.request
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -249,6 +252,33 @@ jobs:
                   if key not in seen:
                       seen.add(key)
                       unique_channels.append(ch)
+
+                      
+               def probe_url(url, timeout=5):
+                  """快速探测 URL 是否可访问"""
+                  try:
+                      req = urllib.request.Request(url, method='HEAD', headers={'User-Agent': '...'})
+                      with urllib.request.urlopen(req, timeout=timeout) as resp:
+                          return resp.status < 400
+                  except:
+                      try:
+                          req = urllib.request.Request(url, headers={'User-Agent': '...'})
+                          with urllib.request.urlopen(req, timeout=timeout) as resp:
+                              _ = resp.read(1024)
+                              return True
+                      except:
+                          return False
+
+              # 在输出前过滤
+              alive_channels = []
+              with concurrent.futures.ThreadPoolExecutor(max_workers=30) as pool:
+                  futures = {pool.submit(probe_url, ch['url']): ch for ch in all_channels}
+                  for future in concurrent.futures.as_completed(futures):
+                      ch = futures[future]
+                      if future.result():
+                          alive_channels.append(ch)
+                      else:
+                          print(f"  [DEAD] {ch['name']}")
 
               output_filename = "鱼豚无18a.m3u"
               print(f"正在写入 {output_filename}...")
