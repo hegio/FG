@@ -28,8 +28,8 @@ target_names = [
 
 USE_3_LEVEL_DIRECTORY = True
 NSFW_KEYWORDS = ["18+", "🔞", "adult", "福利", "成人", "av", "xxx", "sex", "erotic", "午夜", "18a"]
-PROBE_TIMEOUT = 5
-PROBE_MAX_WORKERS = 30
+PROBE_TIMEOUT = 3
+PROBE_MAX_WORKERS = 50
 
 def fetch_content(url):
     try:
