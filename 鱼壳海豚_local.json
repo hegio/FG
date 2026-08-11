@@ -2899,6 +2899,12 @@
             "url": "https://raw.githubusercontent.com/ljlfct01/ljlfct01.github.io/refs/heads/main/zb"
         },
         {
+            "name": "🐜youtube",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://x.maflya.com/api/proxy?target=https://raw.githubusercontent.com/mhmdxahmd/mafly/refs/heads/main/youtube.m3u"
+        },
+        {
             "name": "🐜王子多情单源",
             "type": 0,
             "ua": "okhttp",
@@ -3035,6 +3041,12 @@
             "type": 0,
             "ua": "okhttp",
             "url": "https://raw.githubusercontent.com/ljlfct01/ljlfct01.github.io/refs/heads/main/zb"
+        },
+        {
+            "name": "🐜youtube",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://x.maflya.com/api/proxy?target=https://raw.githubusercontent.com/mhmdxahmd/mafly/refs/heads/main/youtube.m3u"
         }
     ],
     "parses": [
