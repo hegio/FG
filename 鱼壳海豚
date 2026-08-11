@@ -2891,6 +2891,12 @@
             "type": 0,
             "ua": "okhttp",
             "url": "https://iptv-org.github.io/iptv/index.m3u"
+        },
+        {
+            "name": "🐜ljlfct01",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://raw.githubusercontent.com/ljlfct01/ljlfct01.github.io/refs/heads/main/zb"
         }
     ],
     "parses": [

@@ -2893,6 +2893,12 @@
             "url": "https://iptv-org.github.io/iptv/index.m3u"
         },
         {
+            "name": "🐜ljlfct01",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://raw.githubusercontent.com/ljlfct01/ljlfct01.github.io/refs/heads/main/zb"
+        },
+        {
             "name": "🐜王子多情单源",
             "type": 0,
             "ua": "okhttp",
@@ -2983,30 +2989,6 @@
             "url": "https://raw.githubusercontent.com/jn950/live/refs/heads/main/tv/holive.m3u"
         },
         {
-            "name": "🐜skyrealmus",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://raw.githubusercontent.com/skyrealmus/iptv-consolidated-playlist/refs/heads/main/playlist.m3u"
-        },
-        {
-            "name": "🐜1989",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://iptv.1989.click/playlist.m3u"
-        },
-        {
-            "name": "🐜doms9",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://raw.githubusercontent.com/doms9/iptv/refs/heads/default/M3U8/base.m3u8"
-        },
-        {
-            "name": "🐜YueChan",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://raw.githubusercontent.com/YueChan/Live/refs/heads/main/Global.m3u"
-        },
-        {
             "name": "🐜kimwang1978",
             "type": 0,
             "ua": "okhttp",
@@ -3025,6 +3007,18 @@
             "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8"
         },
         {
+            "name": "🐜doms9",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://raw.githubusercontent.com/doms9/iptv/refs/heads/default/M3U8/base.m3u8"
+        },
+        {
+            "name": "🐜YueChan",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://raw.githubusercontent.com/YueChan/Live/refs/heads/main/Global.m3u"
+        },
+        {
             "name": "🐜ilook",
             "type": 0,
             "ua": "okhttp",
@@ -3035,6 +3029,12 @@
             "type": 0,
             "ua": "okhttp",
             "url": "https://iptv-org.github.io/iptv/index.m3u"
+        },
+        {
+            "name": "🐜ljlfct01",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://raw.githubusercontent.com/ljlfct01/ljlfct01.github.io/refs/heads/main/zb"
         }
     ],
     "parses": [
