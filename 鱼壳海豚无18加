@@ -2384,6 +2384,13 @@
             "type": 0,
             "ua": "okhttp",
             "url": "https://x.maflya.com/api/proxy?target=https://raw.githubusercontent.com/mhmdxahmd/mafly/refs/heads/main/youtube.m3u"
+        },
+        {
+            "name": "🐜A1",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "http://jk.html-5.me/i/converted_20260812T012104.txt",
+            "source": "extra"
         }
     ],
     "parses": [

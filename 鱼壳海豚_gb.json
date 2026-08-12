@@ -2779,6 +2779,12 @@
             "url": "https://raw.githubusercontent.com/tianze889/dstvupn/refs/heads/main/tvupan.txt"
         },
         {
+            "name": "🐜yihad168",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://raw.githubusercontent.com/yihad168/tv/refs/heads/main/live.m3u"
+        },
+        {
             "name": "🐜海哥测试",
             "type": 0,
             "ua": "okhttp",
@@ -2885,6 +2891,13 @@
             "type": 0,
             "ua": "okhttp",
             "url": "https://x.maflya.com/api/proxy?target=https://raw.githubusercontent.com/mhmdxahmd/mafly/refs/heads/main/youtube.m3u"
+        },
+        {
+            "name": "🐜A1",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "http://jk.html-5.me/i/converted_20260812T012104.txt",
+            "source": "extra"
         }
     ],
     "parses": [
