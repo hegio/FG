@@ -2363,6 +2363,20 @@
             "ua": "okhttp",
             "url": "https://gitee.com/szwxk/watch-television/raw/master/wxk1.m3u",
             "source": "extra"
+        },
+        {
+            "name": "🐜A1",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "http://gh-proxy.com/https://github.com/ge6bu6/1/blob/main/1.txt",
+            "source": "extra"
+        },
+        {
+            "name": "🐜A2",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "http://i6.cc.cd/1k/j/165/lt.txt",
+            "source": "extra"
         }
     ],
     "parses": [
