@@ -1741,13 +1741,6 @@
             "url": "https://x.maflya.com/api/proxy?target=https://raw.githubusercontent.com/mhmdxahmd/mafly/refs/heads/main/youtube.m3u"
         },
         {
-            "name": "🐜🐟🍄szwxk🍄🐟",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://gitee.com/szwxk/watch-television/raw/master/wxk1.m3u",
-            "source": "extra"
-        },
-        {
             "name": "🐜A1",
             "type": 0,
             "ua": "okhttp",
