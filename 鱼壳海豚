@@ -2779,12 +2779,6 @@
             "url": "https://raw.githubusercontent.com/tianze889/dstvupn/refs/heads/main/tvupan.txt"
         },
         {
-            "name": "🐜yihad168",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://raw.githubusercontent.com/yihad168/tv/refs/heads/main/live.m3u"
-        },
-        {
             "name": "🐜海哥测试",
             "type": 0,
             "ua": "okhttp",
