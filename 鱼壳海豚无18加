@@ -2308,7 +2308,7 @@
             "name": "🐜kimwang1978",
             "type": 0,
             "ua": "okhttp",
-            "url": "https://raw.githubusercontent.com/kimwang1978/collect-txt/refs/heads/main/others_output.txt",
+            "url": "https://raw.githubusercontent.com/kimwang1978/collect-txt/refs/heads/main/bbxx.txt",
             "source": "extra"
         },
         {
@@ -2379,6 +2379,13 @@
             "type": 0,
             "ua": "okhttp",
             "url": "https://gitee.com/szwxk/watch-television/raw/master/wxk1.m3u",
+            "source": "extra"
+        },
+        {
+            "name": "🐜cm851228",
+            "type": 0,
+            "ua": "okhttp",
+            "url": "https://raw.githubusercontent.com/cm851228/mytxt/refs/heads/main/2027update.txt",
             "source": "extra"
         }
     ],
