@@ -2385,6 +2385,55 @@
             "searchable": 0,
             "filterable": 0,
             "changeable": 0
+        },
+        {
+            "key": "3bmm_spider",
+            "name": "🐬3bmm_spider.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/3bmm_spider.py",
+            "group": "手动"
+        },
+        {
+            "key": "51duanju",
+            "name": "🐬51duanju.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/51duanju.py",
+            "group": "手动"
+        },
+        {
+            "key": "freeok",
+            "name": "🐬FreeOK.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/FreeOK.py",
+            "group": "手动"
+        },
+        {
+            "key": "zlys",
+            "name": "🐬ZLYS.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/ZLYS.py",
+            "group": "手动"
+        },
+        {
+            "key": "py_weishitv",
+            "name": "🐬py_weishitv.py[直播]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/py_weishitv.py",
+            "group": "手动"
+        },
+        {
+            "key": "枫叶4k",
+            "name": "🐬枫叶4K.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/枫叶4K.py",
+            "group": "手动"
+        },
+        {
+            "key": "糯米短剧",
+            "name": "🐬糯米短剧.py[短剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/糯米短剧.py",
+            "group": "手动"
         }
     ],
     "lives": [
