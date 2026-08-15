@@ -818,13 +818,6 @@
             "group": "手动"
         },
         {
-            "key": "spider_4kporno_v19",
-            "name": "🐬spider_4kporno_v19.py[追剧]",
-            "type": 3,
-            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/spider_4kporno_v19.py",
-            "group": "手动"
-        },
-        {
             "key": "神秘影院",
             "name": "🐬神秘影院.py[追剧]",
             "type": 3,
@@ -871,13 +864,6 @@
             "name": "🐬javfree_tvbox_spider_v4_7.py[直播]",
             "type": 3,
             "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/javfree_tvbox_spider_v4_7.py",
-            "group": "手动"
-        },
-        {
-            "key": "paradisehill",
-            "name": "🐬paradisehill.py[追剧]",
-            "type": 3,
-            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/paradisehill.py",
             "group": "手动"
         },
         {
