@@ -2562,13 +2562,6 @@
             "group": "手动"
         },
         {
-            "key": "小红薯app",
-            "name": "🐬小红薯APP.py[追剧]",
-            "type": 3,
-            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/小红薯APP.py",
-            "group": "手动"
-        },
-        {
             "key": "avgood",
             "name": "🐬avgood.py[追剧]",
             "type": 3,
@@ -2580,6 +2573,13 @@
             "name": "🐬小红薯APP.py[追剧]",
             "type": 3,
             "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/小红薯APP.py",
+            "group": "手动"
+        },
+        {
+            "key": "厂长影视",
+            "name": "🐬厂长影视.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/厂长影视.py",
             "group": "手动"
         }
     ],
