@@ -2648,28 +2648,16 @@
             "url": "http://www.52top.com.cn:678/downloads/migu.txt"
         },
         {
-            "name": "🐬iptv直播",
-            "type": 0,
-            "ua": "okhttp/5.3.2",
-            "url": "https://gh-proxy.org/https://raw.githubusercontent.com/vinkerq/iptv-api/refs/heads/master/iptv.txt"
-        },
-        {
             "name": "🐬juli",
             "type": 0,
             "ua": "okhttp/5.3.2",
             "url": "https://files.catbox.moe/h3mb5a.txt"
         },
         {
-            "name": "🐬小新TV",
+            "name": "🐬小新1",
             "type": 0,
             "ua": "okhttp/5.3.2",
-            "url": "https://d.kstore.dev/download/9565/小新TV.txt"
-        },
-        {
-            "name": "🐬台湾台",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://epg.pw/test_channels_taiwan.m3u"
+            "url": "https://raw.githubusercontent.com/hegio/FG/refs/heads/main/t%26m/%E5%B0%8F%E6%96%B01.txt"
         },
         {
             "name": "🐬体育台",
@@ -2687,25 +2675,13 @@
             "name": "🐬裤佬TV",
             "type": 0,
             "ua": "okhttp",
-            "url": "https://gh-proxy.org/https://raw.githubusercontent.com/Jsnzkpg/Jsnzkpg/Jsnzkpg/Jsnzkpg1.m3u"
+            "url": "https://gh-proxy.org/https://gh-proxy.org/https://raw.githubusercontent.com/Jsnzkpg/Jsnzkpg/Jsnzkpg/Jsnzkpg"
         },
         {
-            "name": "🐬裤佬TV2",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://tv.tmxk.kdns.fr/ex64181y"
-        },
-        {
-            "name": "🐬live.m3u",
+            "name": "🐬裤佬iptv.m3u",
             "type": 0,
             "ua": "okhttp",
             "url": "https://live.445569.xyz/live.m3u"
-        },
-        {
-            "name": "🐬Gather",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://iptv.yang-1989.eu.org/m3u/Gather.m3u"
         },
         {
             "name": "🐬Mytv",
@@ -2720,16 +2696,16 @@
             "url": "http://xtvantsc.xyz/新加坡.m3u"
         },
         {
-            "name": "🐬黄蚂蚁先锋推流源",
+            "name": "🐬China'TV",
             "type": 0,
             "ua": "okhttp",
-            "url": "http://ge.html-5.me//ii/黄蚂蚁先锋推流源.txt"
+            "url": "https://live.264788.xyz/sub/02RSmXvNuVrybYLhIhYqRJDBX6L9ox"
         },
         {
-            "name": "🐬易发源 有🔞",
+            "name": "🐬风云源",
             "type": 0,
             "ua": "okhttp",
-            "url": "https://gh-proxy.org/https://raw.githubusercontent.com/fafa002/yf2025/refs/heads/main/yiyifafa.txt"
+            "url": "http://iptv.4666888.xyz/FYTV.txt"
         },
         {
             "name": "🐬飞扬源",
@@ -2750,28 +2726,10 @@
             "url": "https://t.freetv.fun/m3u/playlist_all.txt"
         },
         {
-            "name": "🐬4GTV(梯子台湾节点)720p",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/4gtv.txt"
-        },
-        {
-            "name": "🐬4GTV怡淳酒店(梯子台湾节点)720p",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "http://xtvantsc.xyz/4gtv.txt"
-        },
-        {
             "name": "🐬4GTV(免梯子)1080p",
             "type": 0,
             "ua": "okhttp",
             "url": "http://4gtv.cnlive.club/4gtv.m3u"
-        },
-        {
-            "name": "🐬安博(梯子)卡顿 有🔞",
-            "type": 0,
-            "ua": "okhttp",
-            "url": "https://ghfast.top/https://raw.githubusercontent.com/FGBLH/HKL/refs/heads/main/安博.txt"
         },
         {
             "name": "🐬jackTV(梯子)",
