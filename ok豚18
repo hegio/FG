@@ -1255,13 +1255,6 @@
             "source": "json-lt18"
         },
         {
-            "key": "91n",
-            "name": "🐬91n.py[追剧]",
-            "type": 3,
-            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/91n.py",
-            "group": "手动"
-        },
-        {
             "key": "chaturbate2",
             "name": "🐬Chaturbate2🔞.py[追剧]",
             "type": 3,
@@ -1315,6 +1308,20 @@
             "name": "🐬推特APP.py[追剧]",
             "type": 3,
             "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/推特APP.py",
+            "group": "手动"
+        },
+        {
+            "key": "avgood",
+            "name": "🐬avgood.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/avgood.py",
+            "group": "手动"
+        },
+        {
+            "key": "小红薯app",
+            "name": "🐬小红薯APP.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/小红薯APP.py",
             "group": "手动"
         }
     ],
