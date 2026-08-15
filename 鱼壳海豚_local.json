@@ -2429,10 +2429,157 @@
             "group": "手动"
         },
         {
+            "key": "91动漫",
+            "name": "🐬91 动漫.py[动漫]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/91 动漫.py",
+            "group": "手动"
+        },
+        {
+            "key": "acg漫画网",
+            "name": "🐬Acg 漫画网.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/Acg 漫画网.py",
+            "group": "手动"
+        },
+        {
+            "key": "chaturbate2",
+            "name": "🐬Chaturbate2🔞.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/Chaturbate2🔞.py",
+            "group": "手动"
+        },
+        {
+            "key": "hjsqn",
+            "name": "🐬HJSQN.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/HJSQN.py",
+            "group": "手动"
+        },
+        {
+            "key": "pttco",
+            "name": "🐬Ptt.co.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/Ptt.co.py",
+            "group": "手动"
+        },
+        {
+            "key": "rouvideo",
+            "name": "🐬RouVideo.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/RouVideo.py",
+            "group": "手动"
+        },
+        {
+            "key": "uu视视app",
+            "name": "🐬UU视视APP.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/UU视视APP.py",
+            "group": "手动"
+        },
+        {
+            "key": "vv",
+            "name": "🐬VV.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/VV.py",
+            "group": "手动"
+        },
+        {
+            "key": "aniget",
+            "name": "🐬aniget.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/aniget.py",
+            "group": "手动"
+        },
+        {
+            "key": "ho5ho漫画源",
+            "name": "🐬ho5ho漫画源.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/ho5ho漫画源.py",
+            "group": "手动"
+        },
+        {
+            "key": "javfree_tvbox_spider",
+            "name": "🐬javfree_tvbox_spider_v4_7.py[直播]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/javfree_tvbox_spider_v4_7.py",
+            "group": "手动"
+        },
+        {
+            "key": "paradisehill",
+            "name": "🐬paradisehill.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/paradisehill.py",
+            "group": "手动"
+        },
+        {
+            "key": "spider_4kporno_v19",
+            "name": "🐬spider_4kporno_v19.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/spider_4kporno_v19.py",
+            "group": "手动"
+        },
+        {
+            "key": "大米星球",
+            "name": "🐬大米星球.py[体育]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/大米星球.py",
+            "group": "手动"
+        },
+        {
+            "key": "好莱污影院",
+            "name": "🐬好莱污影院.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/好莱污影院.py",
+            "group": "手动"
+        },
+        {
+            "key": "推特app",
+            "name": "🐬推特APP.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/推特APP.py",
+            "group": "手动"
+        },
+        {
+            "key": "神秘影院",
+            "name": "🐬神秘影院.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/神秘影院.py",
+            "group": "手动"
+        },
+        {
+            "key": "魑魅魍魉_tvbox源",
+            "name": "🐬魑魅魍魉_TVBox源.py[直播]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/魑魅魍魉_TVBox源.py",
+            "group": "手动"
+        },
+        {
+            "key": "龙禁漫",
+            "name": "🐬龙禁漫.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/龙禁漫.py",
+            "group": "手动"
+        },
+        {
             "key": "小红薯app",
             "name": "🐬小红薯APP.py[追剧]",
             "type": 3,
             "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/小红薯APP.py",
+            "group": "手动"
+        },
+        {
+            "key": "avgood",
+            "name": "🐬avgood.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/avgood.py",
+            "group": "手动"
+        },
+        {
+            "key": "小红薯app",
+            "name": "🐬小红薯APP.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/小红薯APP.py",
             "group": "手动"
         }
     ],

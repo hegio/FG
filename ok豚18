@@ -847,6 +847,76 @@
             "group": "手动"
         },
         {
+            "key": "chaturbate2",
+            "name": "🐬Chaturbate2🔞.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/Chaturbate2🔞.py",
+            "group": "手动"
+        },
+        {
+            "key": "pttco",
+            "name": "🐬Ptt.co.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/Ptt.co.py",
+            "group": "手动"
+        },
+        {
+            "key": "uu视视app",
+            "name": "🐬UU视视APP.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/UU视视APP.py",
+            "group": "手动"
+        },
+        {
+            "key": "javfree_tvbox_spider",
+            "name": "🐬javfree_tvbox_spider_v4_7.py[直播]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/javfree_tvbox_spider_v4_7.py",
+            "group": "手动"
+        },
+        {
+            "key": "paradisehill",
+            "name": "🐬paradisehill.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/paradisehill.py",
+            "group": "手动"
+        },
+        {
+            "key": "大米星球",
+            "name": "🐬大米星球.py[体育]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/大米星球.py",
+            "group": "手动"
+        },
+        {
+            "key": "好莱污影院",
+            "name": "🐬好莱污影院.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/好莱污影院.py",
+            "group": "手动"
+        },
+        {
+            "key": "推特app",
+            "name": "🐬推特APP.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/推特APP.py",
+            "group": "手动"
+        },
+        {
+            "key": "avgood",
+            "name": "🐬avgood.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/avgood.py",
+            "group": "手动"
+        },
+        {
+            "key": "小红薯app",
+            "name": "🐬小红薯APP.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/小红薯APP.py",
+            "group": "手动"
+        },
+        {
             "key": "cmjh",
             "name": "✈️关注裤佬TG频道@stymei",
             "type": 1,
@@ -1253,76 +1323,6 @@
             "searchable": 1,
             "quickSearch": 1,
             "source": "json-lt18"
-        },
-        {
-            "key": "chaturbate2",
-            "name": "🐬Chaturbate2🔞.py[追剧]",
-            "type": 3,
-            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/Chaturbate2🔞.py",
-            "group": "手动"
-        },
-        {
-            "key": "pttco",
-            "name": "🐬Ptt.co.py[追剧]",
-            "type": 3,
-            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/Ptt.co.py",
-            "group": "手动"
-        },
-        {
-            "key": "uu视视app",
-            "name": "🐬UU视视APP.py[追剧]",
-            "type": 3,
-            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/UU视视APP.py",
-            "group": "手动"
-        },
-        {
-            "key": "javfree_tvbox_spider",
-            "name": "🐬javfree_tvbox_spider_v4_7.py[直播]",
-            "type": 3,
-            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/javfree_tvbox_spider_v4_7.py",
-            "group": "手动"
-        },
-        {
-            "key": "paradisehill",
-            "name": "🐬paradisehill.py[追剧]",
-            "type": 3,
-            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/paradisehill.py",
-            "group": "手动"
-        },
-        {
-            "key": "大米星球",
-            "name": "🐬大米星球.py[体育]",
-            "type": 3,
-            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/大米星球.py",
-            "group": "手动"
-        },
-        {
-            "key": "好莱污影院",
-            "name": "🐬好莱污影院.py[追剧]",
-            "type": 3,
-            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/好莱污影院.py",
-            "group": "手动"
-        },
-        {
-            "key": "推特app",
-            "name": "🐬推特APP.py[追剧]",
-            "type": 3,
-            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/推特APP.py",
-            "group": "手动"
-        },
-        {
-            "key": "avgood",
-            "name": "🐬avgood.py[追剧]",
-            "type": 3,
-            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/avgood.py",
-            "group": "手动"
-        },
-        {
-            "key": "小红薯app",
-            "name": "🐬小红薯APP.py[追剧]",
-            "type": 3,
-            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/1+8/小红薯APP.py",
-            "group": "手动"
         }
     ],
     "parses": [
