@@ -716,13 +716,6 @@
             "group": "手动"
         },
         {
-            "key": "3bmm_spider",
-            "name": "🐬3bmm_spider.py[追剧]",
-            "type": 3,
-            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/3bmm_spider.py",
-            "group": "手动"
-        },
-        {
             "key": "枫叶4k",
             "name": "🐬枫叶4K.py[追剧]",
             "type": 3,
@@ -734,6 +727,13 @@
             "name": "🐬糯米短剧.py[短剧]",
             "type": 3,
             "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/糯米短剧.py",
+            "group": "手动"
+        },
+        {
+            "key": "小红薯app",
+            "name": "🐬小红薯APP.py[追剧]",
+            "type": 3,
+            "api": "https://ghfast.top/https://raw.githubusercontent.com/hegio/FG/main/PY/小红薯APP.py",
             "group": "手动"
         }
     ],
