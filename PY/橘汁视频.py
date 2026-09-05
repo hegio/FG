@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# 华谊影视 TVBox spider — 协议逆向完整版
+# 橘汁视频 TVBox spider — 华谊同款协议栈移植
 import json
 import re
 import sys
@@ -24,11 +24,11 @@ PUB1_B64 = 'MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCr8SzZhjYy+rsya1K09t8d2K50pWFo
 NATIVE_K = b'ed5fdsgucxumegqa'
 SAFE = b'OC1A06E197EF10CF3F6058CA7A803B5E'
 PW_SAFE = b'11GK2we32144LO&hilUITB)FMd1khdaF'
-CERT_MD5 = '089C68CF7E7F6A5A29790CC656EB7126'
-CERT_SHA1 = '7E1141ECF197A3A7FD9A41900F8C638A12BA102F'
-PKG = 'com.lxf.sncgtzxyx'
-VC = '6001'
-HOST = 'http://43.240.158.154:18004'
+CERT_MD5 = '090DA8F91D3F60CC6CB250D86F06FE12'
+CERT_SHA1 = '3DADB42485B7F864E766479ADA6B1176D81D8D73'
+PKG = 'com.mxj.wylcjbxyx'
+VC = '3023'
+HOST = 'https://juziapp.hzhcbkj.cn'
 UA = 'okhttp/3.12.1'
 
 _e = base64.b64encode(AES.new(PW_SAFE, AES.MODE_ECB).encrypt(pad(
@@ -92,10 +92,10 @@ def _rnd(k):
 
 
 class Spider(_Base):
-    HOST_NAME = '华谊影视'
+    HOST_NAME = '橘汁视频'
 
     def getName(self):
-        return '华谊影视'
+        return '橘汁视频'
 
     _cur_id = ''
 
@@ -109,7 +109,9 @@ class Spider(_Base):
 
     def _http(self, url, data=None, headers=None):
         req = urllib.request.Request(url, data=data, headers=headers or {})
-        return urllib.request.urlopen(req, timeout=25).read()
+        import ssl
+        ctx = ssl._create_unverified_context()
+        return urllib.request.urlopen(req, timeout=25, context=ctx).read()
 
     def _login(self):
         try:
@@ -134,11 +136,11 @@ class Spider(_Base):
         sign = base64.b64encode(self._rsa1.encrypt((str(ts) + rnd).encode())).decode()
         body = (_f(1, 0, _varint(ts)) + _f(2, 2, sign.encode()) +
                 _f(3, 2, rnd.encode()) + _f(4, 2, rnd.encode()) + _f(5, 2, rnd.encode()))
-        P = {'plat': 'android', 'vOs': '16', '_vOsCode': '36', 'vApp': '6001',
-             'vName': '6.0.0.1', 'pkg': PKG,
-             'appName': '%E5%8D%8E%E8%B0%8A%E5%BD%B1%E8%A7%86',
+        P = {'plat': 'android', 'vOs': '16', '_vOsCode': '36', 'vApp': '3023',
+             'vName': '3.0.2.3', 'pkg': PKG,
+             'appName': '%E6%A9%98%E6%B1%81',
              'udid': self.udid, 'uuid': self.udid, 'chid': '10000',
-             'androidID': self.udid, 'net': '1', 'young': 0, 'tenantId': '',
+             'androidID': self.udid, 'net': '1', 'young': 0, 'tenantId': '*',
              'v': 1, 'device': 0, 'lang': 'zh', 'country': 'CN', 'cpu': 'arm64-v8a'}
         d = self._http(HOST + '/api/v5/find/app/zone', body, {
             'User-Agent': UA, 'Content-Type': 'application/x-protobuf',
@@ -153,19 +155,19 @@ class Spider(_Base):
     def _hdr(self):
         ts = int(time.time() * 1000)
         rnd = _rnd(16)
-        sig = base64.b64encode(self._rsa2.encrypt((str(ts) + rnd + '6001').encode())).decode()
+        sig = base64.b64encode(self._rsa2.encrypt((str(ts) + rnd + '3023').encode())).decode()
         ao = base64.b64encode(AES.new(SAFE, AES.MODE_ECB).encrypt(
             pad((str(ts) + rnd).encode(), 16))).decode()
-        J = {'country': 'CN', 'vName': '6.0.0.1', 'cpuId': '', 'young': 0,
+        J = {'country': 'CN', 'vName': '3.0.2.3', 'cpuId': '', 'young': 0,
              'facturer': 'OnePlus', 'pkg': PKG, 'uuid': self.udid,
              'resolution': '1080x2256', 'mac': '02%3A00%3A00%3A00%3A00%3A00',
-             'sig': sig, 'abid': '3884', 'model': 'PJX110', 'plat': 'android',
+             'sig': sig, 'abid': '7470', 'model': 'PJX110', 'plat': 'android',
              'udid': self.udid, 'dpi': '480', 'net': '1', 'lang': 'zh',
              'random_str': rnd, 'brand': 'OnePlus', 'timestamp': ts,
-             'density': '3.0', 'appName': '%E5%8D%8E%E8%B0%8A%E5%BD%B1%E8%A7%86',
+             'density': '3.0', 'appName': '%E6%A9%98%E6%B1%81',
              'cpu': 'arm64-v8a', 'chid': '10000', 'carrier': '%E8%81%94%E9%80%9A',
-             'sig2': ao[:8], 'v': 1, 'sig3': ao[8:], 'tenantId': '',
-             '_vOsCode': '36', 'vOs': '16', 'vApp': '6001', 'device': 0,
+             'sig2': ao[:8], 'v': 1, 'sig3': ao[8:], 'tenantId': '*',
+             '_vOsCode': '36', 'vOs': '16', 'vApp': '3023', 'device': 0,
              'androidID': self.udid}
         blob = json.dumps(J, separators=(',', ':'), ensure_ascii=False).encode()
         pd_hex = AES.new(NATIVE_K, AES.MODE_CBC, NATIVE_K).encrypt(pad(blob, 16)).hex()
@@ -429,50 +431,61 @@ class Spider(_Base):
                 out['vod_play_url'] = '$$$'.join(
                     '#'.join(lmap[l]) for l in lines)
             else:
-                out['vod_play_from'] = '华谊'
+                out['vod_play_from'] = '橘汁'
                 out['vod_play_url'] = '暂无片源$http://'
         except Exception:
             out['vod_name'] = ids[0]
-            out['vod_play_from'] = '华谊'
+            out['vod_play_from'] = '橘汁'
             out['vod_play_url'] = '播放$http://'
         return {'list': [out]}
 
     def searchContent(self, key, quick, pg=1):
         try:
-            # searchKeys参数+中文不URL编码(编码后返回空, 同橘汁):
-            qs = 'page=%s&pagesize=24&searchKeys=%s' % (pg or 1, key)
             hh = self._hdr()
             hh['Content-Type'] = 'application/x-protobuf'
             hh['Accept'] = 'application/x-protobuf'
+            qs = 'page=%s&pagesize=24&searchKeys=%s' % (pg or 1, key)
             d = self._http(HOST + '/api/proto/v5/drama/search',
                            self._secure(qs), hh)
             top = _pb(d)
             code = [v for fn, wt, v in top if fn == 1 and wt == 0]
             if (code[0] if code else 0) != 200:
                 return {'list': [], 'page': int(pg or 1)}
-            data = [v for fn, wt, v in top if fn == 3 and wt == 2][0]
+            datas = [v for fn, wt, v in top if fn == 3 and wt == 2]
+            if not datas:
+                return {'list': [], 'page': int(pg or 1)}
             out = []
-            for fn, wt, v in _pb(data):
-                if fn != 1 or wt != 2:
+            for fn, wt, v in _pb(datas[0]):
+                if wt != 2 or fn == 0 or fn > 100:
                     continue
-                info = {'vod_id': '', 'vod_name': '', 'vod_pic': '', 'vod_remarks': ''}
-                for f2, w2, v2 in _pb(v):
-                    if f2 == 3 and w2 == 0:
-                        info['vod_id'] = str(v2)
-                    elif f2 == 5 and w2 == 2:
-                        info['vod_name'] = v2.decode('utf-8', 'replace')
-                    elif f2 == 2 and w2 == 2:
-                        cands = [v3.decode('utf-8', 'replace')
-                                 for f3, w3, v3 in _pb(v2)
-                                 if w3 == 2 and v3.startswith(b'http')]
-                        if cands:
-                            info['vod_pic'] = next(
-                                (u for u in cands if u.startswith('https')),
-                                cands[0])
-                    elif f2 == 13 and w2 == 2:
-                        info['vod_remarks'] = v2.decode('utf-8', 'replace')
-                if info['vod_id'] and info['vod_name']:
-                    out.append(info)
+                item = {'vod_id': '', 'vod_name': '', 'vod_pic': '',
+                        'vod_remarks': ''}
+                for f3, w3, v3 in _pb(v):
+                    if w3 != 2 and not (f3 == 3 and w3 == 0):
+                        continue
+                    try:
+                        if f3 == 3 and w3 == 0:
+                            item['vod_id'] = str(v3)
+                        elif f3 == 5:
+                            item['vod_name'] = v3.decode('utf-8', 'replace')
+                        elif f3 == 2:
+                            # 海报 b64串: 取内部http
+                            cands = [x.decode('utf-8', 'replace')
+                                     for _, w4, x in _pb(v3)
+                                     if w4 == 2 and x.startswith(b'http')]
+                            if cands:
+                                item['vod_pic'] = next(
+                                    (u for u in cands if u.startswith('https')),
+                                    cands[0])
+                        elif f3 == 13:
+                            item['vod_remarks'] = v3.decode('utf-8', 'replace')
+                        elif f3 == 4:
+                            item['vod_content'] = v3.decode(
+                                'utf-8', 'replace')[:100]
+                    except Exception:
+                        pass
+                if item['vod_id'] and item['vod_name']:
+                    out.append(item)
             return {'list': out, 'page': int(pg or 1)}
         except Exception:
             return {'list': [], 'page': 1}
