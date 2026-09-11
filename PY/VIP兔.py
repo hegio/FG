@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# QQ群：807916734
 """VIP兔 (https://www.viptu.com/) - TVBox / dr_py Python Spider."""
 
 import base64
