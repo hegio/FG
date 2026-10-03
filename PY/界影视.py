@@ -3,6 +3,9 @@
 # 列表/详情: 服务端渲染 RSC flight 数据, 直接解析 {"vodId":...} JSON
 # 播放: 签名 API /mw-movie/anonymous/v2/video/episode/url (签名算法由前端 JS 还原)
 # 二级分类: /vod/show/id/{tid} 页 filter-ul 行, 片段 /class/x/area/y/year/z/lang/w, 排序 sort/sortBy
+# 修复(2026-10-03): 电视剧无二级分类按钮 -> ①homeContent 始终构建 filters(不依赖客户端 filter 参数);
+#   分类页抓取失败自动重试一次, 避免偶发失败导致整组按钮缺失;
+#   ②type 行取值改为从 href 提取数字 id(如/2/type/14 取 14), 原来误用中文名导致筛选 URL 错误
 from base.spider import Spider
 import requests
 import re
@@ -105,21 +108,34 @@ class Spider(Spider):
 
     def _parse_filters(self, html, tid):
         flist = []
+        seen_keys = set()
         rows = re.findall(r'<div class="filter-ul">(.*?)</div>', html, re.S)
         for r in rows:
-            links = re.findall(r'href="(/vod/show/id/\d+[^"]*)">([^<]+)</a>', r)
+            links = re.findall(r'href="(/vod/show/id/\d+[^"]*)"[^>]*>([^<]+)</a>', r)
             if len(links) < 2:
                 continue
-            km = re.search(r'/id/\d+/(\w+)/', links[1][0])
-            if not km or km.group(1) not in FILTER_LABEL:
+            key = ""
+            for u, _n in links:
+                km = re.search(r'/id/\d+/([A-Za-z]+)/', u)
+                if km and km.group(1) in FILTER_LABEL:
+                    key = km.group(1)
+                    break
+            if not key or key in seen_keys:
                 continue
-            key = km.group(1)
+            seen_keys.add(key)
             vals = [{"n": "全部", "v": ""}]
-            for _u, n in links[1:]:
-                n = n.strip()
-                if n and n != "全部":
-                    vals.append({"n": n, "v": n})
-            flist.append({"key": key, "name": FILTER_LABEL[key], "value": vals})
+            have = set()
+            for u, n in links:
+                n = (n or "").strip()
+                if not n or n == "全部":
+                    continue
+                vm = re.search(r'/id/\d+/[A-Za-z]+/([^"]+)$', u)
+                v = unquote(vm.group(1)).strip() if vm else n
+                if v and v not in have:
+                    have.add(v)
+                    vals.append({"n": n, "v": v})
+            if len(vals) >= 2:
+                flist.append({"key": key, "name": FILTER_LABEL[key], "value": vals})
         flist.sort(key=lambda x: FILTER_ORDER.index(x["key"]) if x["key"] in FILTER_ORDER else 99)
         # 排序: 电影=上映时间, 其他=最近更新/添加时间
         if tid == "1":
@@ -141,15 +157,28 @@ class Spider(Spider):
             if tid not in [c["type_id"] for c in classes]:
                 classes.append({"type_id": tid, "type_name": name})
         result = {"class": classes, "list": self._parse_vods(blob)}
-        if filter:
-            filters = {}
-            for c in classes:
+        # 二级分类按钮: 不依赖客户端是否传 filter, 始终构建 filters;
+        # 单个分类页抓取失败时重试一次, 避免某个分类(如电视剧)偶发失败导致整组按钮缺失
+        filters = {}
+        for c in classes:
+            tid = c["type_id"]
+            url = "%s/vod/show/id/%s" % (self.host, tid)
+            fhtml = ""
+            for _try in range(2):
                 try:
-                    fhtml, _ = self._flight("%s/vod/show/id/%s" % (self.host, c["type_id"]))
-                    filters[c["type_id"]] = self._parse_filters(fhtml, c["type_id"])
+                    if _try:
+                        self._cache.pop(url, None)
+                    fhtml, _ = self._flight(url)
+                    if fhtml and "filter-ul" in fhtml:
+                        break
                 except Exception:
-                    pass
-            result["filters"] = filters
+                    fhtml = ""
+            try:
+                if fhtml:
+                    filters[tid] = self._parse_filters(fhtml, tid)
+            except Exception:
+                pass
+        result["filters"] = filters
         return result
 
     # ---------------- category ----------------
