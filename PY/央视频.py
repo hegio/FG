@@ -1,15 +1,57 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-央视频直播 - 双源统一版 (Script 1 native + Script 2 YSPTP)
-- 文件日志已禁用 (不写 /storage/emulated/0/Download/ysp-live.log)
-- 双源: 央视频源1 (JCE/bk) + 央视频源2 (YSPTP)
+央视频直播 - 单源多模式版 (JCE 25312 / bkliveinfo)，TVBox / FongMi / VodPlus 爬虫版
+
+用法一：当直播源（live 里填）
+{
+"api": "./yangshipin.py",
+"ext": {},
+"name": "央视频"
+}
+
+用法二：当点播站（site 里填）
+{
+"key": "yangshipin_vod", "name": "央视频",
+"type": 3,
+"api": "./yangshipin.py", "ext": {}
+}
+
+ext 可选：
+  epg_xml         直播源 M3U 的节目单地址，默认 https://epg.112114.xyz/pp.xml，留空则不写
+  epg_ids         覆盖 tvg-id 映射，如 {"CCTV-1 综合": "CCTV1"}
+  logo_mode       direct(默认) 台标走 CDN 直连；proxy 则全部走本地代理
+  direct          true = 全部请求走 urllib，不借容器的 self.fetch()，排错时用
+  wait            打开频道时等待首帧就绪的秒数，默认 12
+  cast_wait       打开投屏线路时等待握手的秒数，默认 20（比源1慢，要给足时间）
+  holdback        播放列表尾部保留几片不播，默认 1（防刚抓到的切片没落地）
+  ts_cache_mb     切片缓存上限(MB)，默认 0=关闭
+  cast_entries    true 时直播源 M3U 也导出投屏条目（默认 false，只出源1）
+  live_mode       proxy(默认) 走代理滚动缓冲；redirect 直接 302 到官方 m3u8，
+                  省掉握手等待（投屏源必须带签名头，会自动退回 proxy）
+  cast_timeout / cast_insecure / cast_cache_ttl / cast_interval / cast_jitter
+  cast_session_ttl / cast_heartbeat / cast_links / cast_persist / cast_device_json
+
+排错：浏览器打开 代理地址?type=diag
+      加 &slug=cctv1 会当场拉一次流（&mode=redirect 则测直连取址）
+
+多模式兼容说明：
+- 出网：普通请求统一走 _http()，GET 优先借容器 self.fetch()，失败或 POST 回落 urllib，
+  SSL 校验失败自动降级重试一次；投屏请求走自带客户端（保签名头 + cookie）
+- 源1（默认）：JCE 25312 / bkliveinfo 双通道互备，bk 取不到回落 JCE，
+  JCE 撞到死链 CDN(liverecord.video.cloud.cctv.com) 自动切 bk
+- 源2（投屏）：模拟电视接收端做设备注册 + 云设备注册 + 双设备热备池，
+  换高码流；启动不建会话，进「央视高码」分类或点开投屏线路时才触发
+- 播放：localProxy 取代 ThreadingHTTPServer，不占端口；live_mode 可在
+  代理滚动缓冲(proxy) 与 官方直连 302(redirect) 之间切换
+- 入口：live(直播 M3U) / site(点播分类+详情) / diag 三种模式共用同一份频道表
+- 依赖：纯标准库，内置纯 Python AES-256-GCM 与 RSA-OAEP，不需要装加解密包
 """
 
-import base64, gzip, hashlib, json, os, random, re, struct, threading, time
+import base64, gzip, hashlib, hmac as _hmac, http.cookiejar, json, os, random, re, socket, struct, threading, time
+import ssl
 import urllib.error, urllib.parse, urllib.request, uuid
 from collections import deque
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 try:
     from base.spider import Spider as SpiderBase
@@ -42,8 +84,7 @@ REFRESH_INTERVAL = 2
 IDLE_TIMEOUT = 300
 MAX_SEGS = 400
 PLAYLIST_WINDOW = 8
-LOCAL_PORT_PREFERRED = 19876
-LOCAL_PORT_RANGE = 50
+HTTP_TIMEOUT = 12
 
 
 # ================================================================ JCE 协议
@@ -191,10 +232,10 @@ def jce_timeshift_url(pid, sid, start, end, stream='fhd'):
     CMD = 25312
     reqid = int(time.time() * 1000) & 0x7fffffff
     packet = _wrap(CMD, body, reqid)
-    req = urllib.request.Request('https://jacc.ysp.cctv.cn', data=packet, method='POST')
-    req.add_header('Content-Type', 'application/octet-stream')
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        raw = resp.read()
+    st, raw, _ = _http('POST', 'https://jacc.ysp.cctv.cn',
+                      {'Content-Type': 'application/octet-stream'}, packet, HTTP_TIMEOUT)
+    if st < 200 or st >= 300:
+        raise RuntimeError('jce HTTP %d' % st)
     resp_body = _unwrap(raw)
     if not resp_body: raise RuntimeError('bad response')
     m = R(resp_body).struct()
@@ -305,10 +346,11 @@ def bk_playurls(channel_id, live_pid, defn='fhd'):
         'sysver': 'ios18.2.1', 'uhd_flag': '0', 'cKey': t['cKey'], 'guid': t['guid'],
         'fntick': str(t['ts']), 'flowid': t['flowId'], 'playbacktime': '0',
     })
-    req = urllib.request.Request('https://bkliveinfo.ysp.cctv.cn/?' + q,
-                                 headers={'User-Agent': 'qqlive', 'Accept': 'application/json'})
-    with urllib.request.urlopen(req, timeout=15) as r:
-        p = json.loads(r.read().decode())
+    st, body, _ = _http('GET', 'https://bkliveinfo.ysp.cctv.cn/?' + q,
+                        {'User-Agent': 'qqlive', 'Accept': 'application/json'}, None, HTTP_TIMEOUT)
+    if st < 200 or st >= 300:
+        raise RuntimeError('bk HTTP %d' % st)
+    p = json.loads(body.decode('utf-8', 'replace'))
     if int(p.get('iretcode', -1)) != 0:
         raise RuntimeError('iretcode=%s %s' % (p.get('iretcode'), p.get('errinfo', '')))
     urls = []
@@ -324,514 +366,1378 @@ def bk_playurls(channel_id, live_pid, defn='fhd'):
     return urls
 
 
-# ================================================================ YSPTP 协议
+# ================================================================ 央视高码内核 (协议源自 ysp-live v9.0)
 
-AK = '9f5c54c4ed0e50109b800f7e28fec205'
-YSPTP_APP_START = 'https://ytpaddr.cctv.cn/gsnw/api/app/start/v1/01'
-YSPTP_DICTIONARY = 'https://ytpaddr.cctv.cn/gsnw/player/dictionary/obtain/v1'
-YSPTP_LIVE_01 = 'https://ytpaddr.cctv.cn/gsnw/api/live/v1/01'
-YSPTP_LIVE_02 = 'https://ytpaddr.cctv.cn/gsnw/api/live/v1/02'
-YSPTP_VDN = 'https://ytpvdn.cctv.cn/cctvmobileinf/rest/cctv/videoliveUrl/getstream'
-YSPTP_VERSION = '1.4.1'
-YSPTP_APP_CHANNEL = 'dangbei'
-YSPTP_VDN_APP = '央视频电视投屏助手'
-YSPTP_UA = 'cctv_app_tv'
+CAST_AK = '9f5c54c4ed0e50109b800f7e28fec205'
+CAST_RSA_PUBKEY_B64 = ('MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkKeLy4ywWLSnBkwRyqYgF3HMIj05V5uu'
+                       'h5HjyEsZOWnu1NHu3jPQv3sr32wwQNYv5qapsNXmNgLUDHtgHZxqPQAYXltjSRc0qhcD286t62wOIH'
+                       'Id8zXS3s1Jy4rgU4qjQWzI9rp/1sE0pMsmwTaJa4zuJ5iz8VwF8Av5oJ1k+HxY+/HLnjNlW1hmWLpu'
+                       'DYmkZYuAoTHa1VGeHQh9FEKI8ZcL3GTQphShUoC+Kg3P1hGUVTtCYapmzPS5lkAdwebuzwvTCfGiT'
+                       'ErYZCnPBUSeV7BVlgjtLYIi29KvF0a8FHsJMfe/UdHcyW/RihsIYOtDQcRRpFGXyPXbVrzFJse24'
+                       'QIDAQAB')
+CAST_CLOUD_GET = 'https://ytpcloudws.cctv.cn/cloudps/wssapi/device/v2/get'
+CAST_CLOUD_REGISTER = 'https://ytpcloudws.cctv.cn/cloudps/wssapi/device/v2/register'
+CAST_APP_START = 'https://ytpaddr.cctv.cn/gsnw/api/app/start/v1/01'
+CAST_DRM_CONFIG = 'https://ytpaddr.cctv.cn/gsnw/drm/config/obtain/v1'
+CAST_VERSION_CONFIG = 'https://ytpaddr.cctv.cn/gsnw/version/config/obtain/v1'
+CAST_DICTIONARY = 'https://ytpaddr.cctv.cn/gsnw/player/dictionary/obtain/v1'
+CAST_INDEX = 'https://ytpaddr.cctv.cn/gsnw/api/index/v1/01'
+CAST_REPORT_SINGLE = 'https://ytpdata.cctv.cn/das/app/data/message/single'
+CAST_COLLECT_REPORT = 'https://collect.cctv.cn/cctvmobileinf/rest/cctv/receive/new/app'
+CAST_LIVE_01 = 'https://ytpaddr.cctv.cn/gsnw/api/live/v1/01'
+CAST_LIVE_02 = 'https://ytpaddr.cctv.cn/gsnw/api/live/v1/02'
+CAST_VDN = 'https://ytpvdn.cctv.cn/cctvmobileinf/rest/cctv/videoliveUrl/getstream'
+CAST_LIVE_USER_ID = 'BAEBFF2B-C516-4F34-ABC0-A824A6461CBD'
+CAST_DEVICE_NAME = '央视频电视投屏助手'
+CAST_VDN_APP_NAME = '央视频电视投屏助手'
+CAST_REPORT_APP_KEY = '1178c84d-4818-44ff-b415-02106e87e144'
+CAST_SDK_VERSION = '1.0.0'
+CAST_PAGE_NAME = 'com.cctv.tv.mvp.ui.activity.MainActivity'
+CAST_ACCEPT_LANGUAGE = 'zh-CN,zh;q=0.8'
+CAST_UA = 'cctv_app_tv'
+CAST_APP_CHANNEL = 'dangbei'
+CAST_VERSION = '1.4.1'
+CAST_RESULT_OK = 0
+CAST_RESULT_NEEDS_REGISTER = 601
+CAST_RESULT_GET_INVALID = 2
+CAST_RESULT_REGISTERED_ELSEWHERE = 694
+CAST_RESULT_RETRY_LATER = 695
 
-_YSPTP_STATE_FILE = '/tmp/ysptp-state.json'
-_YSPTP_CACHE_TTL = 600
-_YSPTP_REFRESH_MARGIN = 45
+# ==== 纯 Python AES-256 / GCM / RSA-OAEP-SHA256（不依赖 pycryptodome、cryptography）====
+
+_SBOX =(99 ,124 ,119 ,123 ,242 ,107 ,111 ,197 ,48 ,1 ,103 ,43 ,254 ,215 ,171 ,118 ,202 ,130 ,201 ,125 ,250 ,89 ,71 ,240 ,173 ,212 ,162 ,175 ,156 ,164 ,114 ,192 ,183 ,253 ,147 ,38 ,54 ,63 ,247 ,204 ,52 ,165 ,229 ,241 ,113 ,216 ,49 ,21 ,4 ,199 ,35 ,195 ,24 ,150 ,5 ,154 ,7 ,18 ,128 ,226 ,235 ,39 ,178 ,117 ,9 ,131 ,44 ,26 ,27 ,110 ,90 ,160 ,82 ,59 ,214 ,179 ,41 ,227 ,47 ,132 ,83 ,209 ,0 ,237 ,32 ,252 ,177 ,91 ,106 ,203 ,190 ,57 ,74 ,76 ,88 ,207 ,208 ,239 ,170 ,251 ,67 ,77 ,51 ,133 ,69 ,249 ,2 ,127 ,80 ,60 ,159 ,168 ,81 ,163 ,64 ,143 ,146 ,157 ,56 ,245 ,188 ,182 ,218 ,33 ,16 ,255 ,243 ,210 ,205 ,12 ,19 ,236 ,95 ,151 ,68 ,23 ,196 ,167 ,126 ,61 ,100 ,93 ,25 ,115 ,96 ,129 ,79 ,220 ,34 ,42 ,144 ,136 ,70 ,238 ,184 ,20 ,222 ,94 ,11 ,219 ,224 ,50 ,58 ,10 ,73 ,6 ,36 ,92 ,194 ,211 ,172 ,98 ,145 ,149 ,228 ,121 ,231 ,200 ,55 ,109 ,141 ,213 ,78 ,169 ,108 ,86 ,244 ,234 ,101 ,122 ,174 ,8 ,186 ,120 ,37 ,46 ,28 ,166 ,180 ,198 ,232 ,221 ,116 ,31 ,75 ,189 ,139 ,138 ,112 ,62 ,181 ,102 ,72 ,3 ,246 ,14 ,97 ,53 ,87 ,185 ,134 ,193 ,29 ,158 ,225 ,248 ,152 ,17 ,105 ,217 ,142 ,148 ,155 ,30 ,135 ,233 ,206 ,85 ,40 ,223 ,140 ,161 ,137 ,13 ,191 ,230 ,66 ,104 ,65 ,153 ,45 ,15 ,176 ,84 ,187 ,22 )
+_INV_SBOX =[0 ]*256 
+for _i ,_v in enumerate (_SBOX ):
+    _INV_SBOX [_v ]=_i 
+_INV_SBOX =tuple (_INV_SBOX )
+_RCON =(1 ,2 ,4 ,8 ,16 ,32 ,64 ,128 ,27 ,54 )
+def _xtime (a :int )->int :
+    return (a <<1 ^283 )&255 if a &128 else a <<1 &255 
+def _aes256_key_schedule (key :bytes ):
+    assert len (key )==32 
+    w =[int .from_bytes (key [i :i +4 ],'big')for i in range (0 ,32 ,4 )]
+    for i in range (8 ,60 ):
+        temp =w [i -1 ]
+        if i %8 ==0 :
+            temp =_SBOX [temp >>16 &255 ]<<24 |_SBOX [temp >>8 &255 ]<<16 |_SBOX [temp &255 ]<<8 |_SBOX [temp >>24 &255 ]
+            temp ^=_RCON [i //8 -1 ]<<24 
+        elif i %8 ==4 :
+            temp =_SBOX [temp >>24 &255 ]<<24 |_SBOX [temp >>16 &255 ]<<16 |_SBOX [temp >>8 &255 ]<<8 |_SBOX [temp &255 ]
+        w .append (w [i -8 ]^temp )
+    return [b''.join ((word .to_bytes (4 ,'big')for word in w [i :i +4 ]))for i in range (0 ,60 ,4 )]
+def _add_round_key (state ,rk :bytes ):
+    for i in range (16 ):
+        state [i ]^=rk [i ]
+def _sub_bytes (state ):
+    for i in range (16 ):
+        state [i ]=_SBOX [state [i ]]
+def _inv_sub_bytes (state ):
+    for i in range (16 ):
+        state [i ]=_INV_SBOX [state [i ]]
+def _shift_rows (s ):
+    s [1 ],s [5 ],s [9 ],s [13 ]=(s [5 ],s [9 ],s [13 ],s [1 ])
+    s [2 ],s [6 ],s [10 ],s [14 ]=(s [10 ],s [14 ],s [2 ],s [6 ])
+    s [3 ],s [7 ],s [11 ],s [15 ]=(s [15 ],s [3 ],s [7 ],s [11 ])
+def _inv_shift_rows (s ):
+    s [1 ],s [5 ],s [9 ],s [13 ]=(s [13 ],s [1 ],s [5 ],s [9 ])
+    s [2 ],s [6 ],s [10 ],s [14 ]=(s [10 ],s [14 ],s [2 ],s [6 ])
+    s [3 ],s [7 ],s [11 ],s [15 ]=(s [7 ],s [11 ],s [15 ],s [3 ])
+def _mix_columns (s ):
+    for c in range (4 ):
+        a0 ,a1 ,a2 ,a3 =(s [4 *c ],s [4 *c +1 ],s [4 *c +2 ],s [4 *c +3 ])
+        s [4 *c ]=_xtime (a0 )^(_xtime (a1 )^a1 )^a2 ^a3 
+        s [4 *c +1 ]=a0 ^_xtime (a1 )^(_xtime (a2 )^a2 )^a3 
+        s [4 *c +2 ]=a0 ^a1 ^_xtime (a2 )^(_xtime (a3 )^a3 )
+        s [4 *c +3 ]=_xtime (a0 )^a0 ^a1 ^a2 ^_xtime (a3 )
+def _mul (a :int ,b :int )->int :
+    p =0 
+    for _ in range (8 ):
+        if b &1 :
+            p ^=a 
+        hi =a &128 
+        a =a <<1 &255 
+        if hi :
+            a ^=27 
+        b >>=1 
+    return p 
+def _inv_mix_columns (s ):
+    for c in range (4 ):
+        a0 ,a1 ,a2 ,a3 =(s [4 *c ],s [4 *c +1 ],s [4 *c +2 ],s [4 *c +3 ])
+        s [4 *c ]=_mul (a0 ,14 )^_mul (a1 ,11 )^_mul (a2 ,13 )^_mul (a3 ,9 )
+        s [4 *c +1 ]=_mul (a0 ,9 )^_mul (a1 ,14 )^_mul (a2 ,11 )^_mul (a3 ,13 )
+        s [4 *c +2 ]=_mul (a0 ,13 )^_mul (a1 ,9 )^_mul (a2 ,14 )^_mul (a3 ,11 )
+        s [4 *c +3 ]=_mul (a0 ,11 )^_mul (a1 ,13 )^_mul (a2 ,9 )^_mul (a3 ,14 )
+def aes256_encrypt_block (key :bytes ,block :bytes )->bytes :
+    rk =_aes256_key_schedule (key )
+    s =bytearray (block )
+    _add_round_key (s ,rk [0 ])
+    for rnd in range (1 ,14 ):
+        _sub_bytes (s )
+        _shift_rows (s )
+        _mix_columns (s )
+        _add_round_key (s ,rk [rnd ])
+    _sub_bytes (s )
+    _shift_rows (s )
+    _add_round_key (s ,rk [14 ])
+    return bytes (s )
+def aes256_decrypt_block (key :bytes ,block :bytes )->bytes :
+    rk =_aes256_key_schedule (key )
+    s =bytearray (block )
+    _add_round_key (s ,rk [14 ])
+    for rnd in range (13 ,0 ,-1 ):
+        _inv_shift_rows (s )
+        _inv_sub_bytes (s )
+        _add_round_key (s ,rk [rnd ])
+        _inv_mix_columns (s )
+    _inv_shift_rows (s )
+    _inv_sub_bytes (s )
+    _add_round_key (s ,rk [0 ])
+    return bytes (s )
+def _gf_mult (x :int ,y :int )->int :
+    r =299076299051606071403356588563077529600 
+    z =0 
+    v =y 
+    for _ in range (128 ):
+        if x &170141183460469231731687303715884105728 :
+            z ^=v 
+        if v &1 :
+            v =v >>1 ^r 
+        else :
+            v >>=1 
+        x =x <<1 &340282366920938463463374607431768211455 
+    return z 
+def _ghash (h :int ,aad :bytes ,ct :bytes )->int :
+    x =0 
+    def _blocks (data :bytes ):
+        for i in range (0 ,len (data ),16 ):
+            blk =data [i :i +16 ]
+            if len (blk )<16 :
+                blk =blk +b'\x00'*(16 -len (blk ))
+            yield int .from_bytes (blk ,'big')
+    for b in _blocks (aad ):
+        x =_gf_mult (x ^b ,h )
+    for b in _blocks (ct ):
+        x =_gf_mult (x ^b ,h )
+    lens =len (aad )*8 <<64 |len (ct )*8 
+    x =_gf_mult (x ^lens ,h )
+    return x 
+def _inc32 (block :bytes )->bytes :
+    ctr =int .from_bytes (block [12 :],'big')
+    return block [:12 ]+(ctr +1 &4294967295 ).to_bytes (4 ,'big')
+def _gctr (key :bytes ,icb :bytes ,data :bytes )->bytes :
+    out =bytearray ()
+    cb =icb 
+    for i in range (0 ,len (data ),16 ):
+        ks =aes256_encrypt_block (key ,cb )
+        chunk =data [i :i +16 ]
+        out +=bytes ((a ^b for a ,b in zip (chunk ,ks )))
+        cb =_inc32 (cb )
+    return bytes (out )
+def aes_gcm_encrypt (key :bytes ,nonce :bytes ,plaintext :bytes ,aad :bytes =b'')->bytes :
+    assert len (key )==32 and len (nonce )==12 
+    h =int .from_bytes (aes256_encrypt_block (key ,b'\x00'*16 ),'big')
+    j0 =nonce +b'\x00\x00\x00\x01'
+    ct =_gctr (key ,_inc32 (j0 ),plaintext )
+    s =_ghash (h ,aad ,ct ).to_bytes (16 ,'big')
+    tag =bytes ((a ^b for a ,b in zip (aes256_encrypt_block (key ,j0 ),s )))
+    return ct +tag 
+def aes_gcm_decrypt (key :bytes ,nonce :bytes ,ct_and_tag :bytes ,aad :bytes =b'')->bytes :
+    if len (ct_and_tag )<16 :
+        raise ValueError ('AES-GCM payload too short')
+    ct ,tag =(ct_and_tag [:-16 ],ct_and_tag [-16 :])
+    h =int .from_bytes (aes256_encrypt_block (key ,b'\x00'*16 ),'big')
+    j0 =nonce +b'\x00\x00\x00\x01'
+    s =_ghash (h ,aad ,ct ).to_bytes (16 ,'big')
+    expect =bytes ((a ^b for a ,b in zip (aes256_encrypt_block (key ,j0 ),s )))
+    if not _hmac .compare_digest (tag ,expect ):
+        raise ValueError ('AES-GCM decrypt failed')
+    return _gctr (key ,_inc32 (j0 ),ct )
+def _mgf1_sha256 (seed :bytes ,length :int )->bytes :
+    out =bytearray ()
+    counter =0 
+    while len (out )<length :
+        out +=hashlib .sha256 (seed +counter .to_bytes (4 ,'big')).digest ()
+        counter +=1 
+    return bytes (out [:length ])
+def _oaep_encode_sha256 (message :bytes ,k :int ,seed :bytes )->bytes :
+    hlen =32 
+    if len (message )>k -2 *hlen -2 :
+        raise ValueError ('OAEP message too long')
+    lhash =hashlib .sha256 (b'').digest ()
+    ps =b'\x00'*(k -len (message )-2 *hlen -2 )
+    db =lhash +ps +b'\x01'+message 
+    db_mask =_mgf1_sha256 (seed ,k -hlen -1 )
+    masked_db =bytes ((a ^b for a ,b in zip (db ,db_mask )))
+    seed_mask =_mgf1_sha256 (masked_db ,hlen )
+    masked_seed =bytes ((a ^b for a ,b in zip (seed ,seed_mask )))
+    return b'\x00'+masked_seed +masked_db 
+def _der_read_tlv (der :bytes ,pos :int ):
+    assert der [pos ]==48 ,'expected SEQUENCE'
+    pos +=1 
+    ln ,pos =_der_read_len (der ,pos )
+    end =pos +ln 
+    items =[]
+    while pos <end :
+        tag =der [pos ]
+        pos +=1 
+        ln2 ,pos =_der_read_len (der ,pos )
+        items .append ((tag ,der [pos :pos +ln2 ]))
+        pos +=ln2 
+    return items 
+def _der_read_len (der :bytes ,pos :int ):
+    first =der [pos ]
+    pos +=1 
+    if first &128 ==0 :
+        return (first ,pos )
+    n =first &127 
+    return (int .from_bytes (der [pos :pos +n ],'big'),pos +n )
+def _der_read_int (raw :bytes )->int :
+    return int .from_bytes (raw ,'big')
+def parse_spki_rsa_pubkey (der :bytes ):
+    outer =_der_read_tlv (der ,0 )
+    bitstring =outer [1 ][1 ]
+    assert bitstring [0 ]==0 
+    inner =_der_read_tlv (bitstring [1 :],0 )
+    n =_der_read_int (inner [0 ][1 ])
+    e =_der_read_int (inner [1 ][1 ])
+    return (n ,e )
+def rsa_oaep_sha256_encrypt (der :bytes ,message :bytes ,seed :bytes )->bytes :
+    n ,e =parse_spki_rsa_pubkey (der )
+    k =(n .bit_length ()+7 )//8 
+    em =_oaep_encode_sha256 (message ,k ,seed )
+    m =int .from_bytes (em ,'big')
+    c =pow (m ,e ,n )
+    return c .to_bytes (k ,'big')
 
 
-def _ysptp_now_ms(): return int(time.time() * 1000)
-def _ysptp_now_s(): return time.time()
+class CastError(Exception):
+    pass
+
+
+def _cast_log(msg):
+    _log('[cast] ' + str(msg))
 
 
 def _java_hashcode(s):
     h = 0
-    for c in s:
-        h = ((h * 31) + ord(c)) & 0xFFFFFFFF
-        if h >= 0x80000000: h -= 0x100000000
+    for ch in s:
+        h = ((h * 31) + ord(ch)) & 0xFFFFFFFF
+        if h >= 0x80000000:
+            h -= 0x100000000
     return h
 
 
-def _java_uuid_hash(msb, lsb):
-    def to_u64(v): return v + (1 << 64) if v < 0 else v
+def _java_uuid_from_hashes(msb, lsb):
+    def to_u64(v):
+        return v + (1 << 64) if v < 0 else v
     return '%016x%016x' % (to_u64(msb), to_u64(lsb))
 
 
-def _sha1_upper(s): return hashlib.sha1(s.encode()).hexdigest().upper()
-def _sha256_hex(s): return hashlib.sha256(s.encode()).hexdigest()
-def _md5_hex(s): return hashlib.md5(s.encode()).hexdigest()
+def _sha1_upper(s):
+    return hashlib.sha1(s.encode('utf-8')).hexdigest().upper()
 
 
-# ================================================================
-# Opsi A: device identity 持久化 — 每次返回同一个设备
-# ================================================================
-
-_DEVICE_ANDROID_ID = 'a1b2c3d4e5f6a7b8'
-_DEVICE_MAC = 'aa:bb:cc:dd:ee:01'
-_DEVICE_XUID = None
+def _sha256_hex(s):
+    return hashlib.sha256(s.encode('utf-8')).hexdigest()
 
 
-def _ysptp_profile():
-    return {
-        'android_id': _DEVICE_ANDROID_ID,
-        'mac': _DEVICE_MAC,
-        'hardware': 'mt5895',
-        'board': 'mt5895',
-        'brand': 'Sony',
-        'device': 'sony_xr_85z9k',
-        'manufacturer': 'Sony',
-        'model': 'XR-85Z9K',
-        'product': 'sony_xr_85z9k',
-        'tags': 'release-keys',
-        'build_type': 'user',
-        'user': 'build',
-        'resolution': '7680*4320',
-        'display': 'XR-85Z9K-user 13 SONYTV.2022.XR_85Z9K 2024 release-keys',
-        'version_id': 'SONYTV.2022.XR_85Z9K',
-        'host': 'sony-tv-build',
-        'fingerprint': 'Sony/sony_xr_85z9k/sony_xr_85z9k:13/SONYTV.2022.XR_85Z9K/2024:user/release-keys',
-        'report_model': 'XR85Z9K',
-        'screen_param': '7680-4320-280',
-        'cast_model': 'XR-85Z9K',
-    }
+def _md5_hex(s):
+    return hashlib.md5(s.encode('utf-8')).hexdigest()
 
 
-def _ysptp_xuid(p):
-    build = ('1698' + p['hardware'] + p['board'] + p['brand'] + p['device']
-             + p['manufacturer'] + p['model'] + p['product'] + p['tags']
-             + p['build_type'] + p['user'] + p['resolution'] + p['mac'])
-    uuid_hex = _java_uuid_hash(_java_hashcode(build), _java_hashcode(p['model']))
-    return _sha1_upper(p['android_id'] + '|' + uuid_hex)
+def _native_day0_ms(now_s):
+    return 86400000 * ((int(now_s) + 28800) // 86400) - 28800000
 
 
-def _ysptp_fingerprint(xuid, ms):
-    day0 = 86400000 * ((ms // 1000 + 28800) // 86400) - 28800000
-    return _sha256_hex(_sha256_hex(AK + xuid + str(ms) + str(day0)))
+def _compute_fingerprint(x_uid, now_ms):
+    day0 = _native_day0_ms(now_ms // 1000)
+    return _sha256_hex(_sha256_hex(CAST_AK + x_uid + str(now_ms) + str(day0))), now_ms, day0
 
 
-def _ysptp_load_state():
-    global _DEVICE_XUID
-    p = _ysptp_profile()
-    if _DEVICE_XUID is None:
-        _DEVICE_XUID = _ysptp_xuid(p)
-    return {'schema_version': 1, 'profile': p, 'screen_param': p['screen_param'],
-            'cast_model': p['cast_model'], 'x_uid': _DEVICE_XUID, 'created_at': _ysptp_now_s()}
+def _random_hex(n):
+    return ''.join(random.choice('0123456789abcdef') for _ in range(n))
 
 
-def _ysptp_headers(ident, ctype='application/json; charset=utf-8', accept='application/json', ts=None):
-    return {
-        'Accept': accept or '*/*', 'Accept-Language': 'zh-CN,zh;q=0.8',
-        'Referer': 'api.cctv.cn', 'User-Agent': YSPTP_UA,
-        'UID': ident.get('android_id', ''),
-        'appChannel': YSPTP_APP_CHANNEL,
-        'X-Uid': ident['x_uid'],
-        'X-Fingerprint': ident['x_fingerprint'],
-        'X-Version': YSPTP_VERSION,
-        'X-Timestamp': str(ts if ts is not None else _ysptp_now_ms()),
-        'X-Nonce': str(uuid.uuid4()),
-        'Content-Type': ctype,
-        'Connection': 'Keep-Alive',
-        'Accept-Encoding': 'gzip',
-        'Cache-Control': 'no-cache',
-    }
+def _random_mac():
+    parts = [0xAA, 0xBB, 0xCC, random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)]
+    return ':'.join('%02x' % b for b in parts)
 
 
-def _ysptp_build_identity(p):
-    xu = _ysptp_xuid(p)
-    xf = _ysptp_fingerprint(xu, _ysptp_now_ms())
-    return {'android_id': p['android_id'], 'x_uid': xu, 'x_fingerprint': xf}
+def _sanitize_profile_id(v):
+    return re.sub(r'[^A-Za-z0-9]+', '_', str(v or '')).strip('_')
 
 
-def _ysptp_http(url, headers, body=None, method='POST', timeout=15):
-    data = body.encode('utf-8') if isinstance(body, str) else body
-    req = urllib.request.Request(url, data=data, method=method)
-    for k, v in headers.items():
-        req.add_header(k, v)
+def _resolution_from_screen_param(sp):
+    m = re.match(r'^(\d+)\*(\d+)$', str(sp or ''))
+    if not m:
+        return '7680*4320'
+    return '%s*%s' % (m.group(1), m.group(2))
+
+
+def _compact_json_bytes(value, escape_slashes):
+    text = json.dumps(value, separators=(',', ':'), ensure_ascii=False, sort_keys=True)
+    if escape_slashes:
+        text = text.replace('/', '\\/')
+    return text.encode('utf-8')
+
+
+def _normalize_aes_key(value):
+    raw = value.encode('utf-8')
+    return (raw + b'\x00' * 32)[:32]
+
+
+def _aes_gcm_decrypt_b64(value, key):
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return r.status, r.read(), r.headers.get('Content-Type', '')
-    except urllib.error.HTTPError as e:
-        return e.code, e.read(), e.headers.get('Content-Type', '') if e.headers else ''
-
-
-_AES_BACKEND = None
-
-
-def _detect_aes_backend():
-    global _AES_BACKEND
-    if _AES_BACKEND is not None:
-        return _AES_BACKEND
-    try:
-        from cryptography.hazmat.primitives.ciphers.aead import AESGCM  # noqa
-        _AES_BACKEND = 'cryptography'
-        return _AES_BACKEND
-    except Exception:
-        pass
-    try:
-        from Crypto.Cipher import AES  # noqa
-        _AES_BACKEND = 'pycryptodome'
-        return _AES_BACKEND
-    except Exception:
-        pass
-    _AES_BACKEND = 'none'
-    return _AES_BACKEND
-
-
-def _ysptp_aes_gcm_decrypt_b64(value, key):
-    raw = base64.b64decode(value)
+        raw = base64.b64decode(value, validate=True)
+    except Exception as e:
+        raise CastError('base64 decode failed: %s' % e)
     if len(raw) <= 12:
-        raise RuntimeError('AES-GCM payload too short')
-    k = key.encode('utf-8')[:32].ljust(32, b'\x00')
-    nonce, ct = raw[:12], raw[12:]
-    backend = _detect_aes_backend()
-    if backend == 'cryptography':
-        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-        return AESGCM(k).decrypt(nonce, ct, None).decode('utf-8')
-    if backend == 'pycryptodome':
-        from Crypto.Cipher import AES
-        tag, real_ct = ct[-16:], ct[:-16]
-        cipher = AES.new(k, AES.MODE_GCM, nonce=nonce)
-        return cipher.decrypt_and_verify(real_ct, tag).decode('utf-8')
-    raise RuntimeError('AES-GCM unavailable: install "cryptography" or "pycryptodome"')
+        raise CastError('AES-GCM payload too short')
+    try:
+        plain = aes_gcm_decrypt(_normalize_aes_key(key), raw[:12], raw[12:])
+    except ValueError:
+        raise CastError('AES-GCM decrypt failed')
+    return plain.decode('utf-8', 'replace')
 
 
-def _ysptp_aes_gcm_encrypt_b64(value, key):
-    k = key.encode('utf-8')[:32].ljust(32, b'\x00')
+def _aes_gcm_encrypt_b64(value, key):
     nonce = os.urandom(12)
-    backend = _detect_aes_backend()
-    if backend == 'cryptography':
-        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-        ct = AESGCM(k).encrypt(nonce, value.encode('utf-8'), None)
-        return base64.b64encode(nonce + ct).decode()
-    if backend == 'pycryptodome':
-        from Crypto.Cipher import AES
-        cipher = AES.new(k, AES.MODE_GCM, nonce=nonce)
-        ct, tag = cipher.encrypt_and_digest(value.encode('utf-8'))
-        return base64.b64encode(nonce + ct + tag).decode()
-    raise RuntimeError('AES-GCM unavailable: install "cryptography" or "pycryptodome"')
+    try:
+        enc = aes_gcm_encrypt(_normalize_aes_key(key), nonce, value.encode('utf-8'))
+    except ValueError:
+        raise CastError('AES-GCM encrypt failed')
+    return base64.b64encode(nonce + enc).decode('ascii')
 
 
-def _ysptp_collect_report(p, xuid):
-    value = {
-        'cctv_id': xuid[:64], 'device_id': p['android_id'], 'idfa': '', 'idfv': '', 'user_id': '',
-        'app_key': '1178c84d-4818-44ff-b415-02106e87e144', 'imei': '', 'android_id': p['android_id'], 'mac': p['mac'],
-        'device_builder_type': p['build_type'], 'device_hardware': p['hardware'], 'device_board': p['board'],
-        'device_brand': p['brand'], 'device_params': p['device'], 'device_display': p['display'],
-        'device_version_id': p['version_id'], 'device_host': p['host'], 'device_product': p['product'],
-        'device_tags': p['tags'], 'device_user': p['user'], 'device_fingerprint': p['fingerprint'],
-        'device_manufacturer': p['manufacturer'], 'device_model': p['report_model'],
-        'device_resolution': p['resolution'], 'system_type': 'Android', 'device_type': 'TV',
-        'app_language': 'CHINESE', 'app_version': YSPTP_VERSION, 'sdk_version': '1.0.0',
-        'os_version': '13', 'app_channel': YSPTP_APP_CHANNEL, 'data_time': str(_ysptp_now_ms()),
-    }
-    info = json.dumps({'key': 'app_start_d1', 'value': value}, ensure_ascii=False, separators=(',', ':'))
+def _rsa_encrypt_device_id(device_id):
+    der = base64.b64decode(CAST_RSA_PUBKEY_B64)
+    n, e = parse_spki_rsa_pubkey(der)
+    k = (n.bit_length() + 7) // 8
+    hlen = 32
+    chunk = k - 2 * hlen - 2
+    data = device_id.encode('utf-8')
+    out = bytearray()
+    for i in range(0, len(data), chunk):
+        out += rsa_oaep_sha256_encrypt(der, data[i:i + chunk], os.urandom(hlen))
+    return base64.b64encode(bytes(out)).decode('ascii')
+
+
+def _form_urlencode_value(s):
+    out = []
+    for byte in s.encode('utf-8'):
+        ch = chr(byte)
+        if ch.isascii() and (ch.isalnum() or ch in '*-._'):
+            out.append(ch)
+        elif byte == 32:
+            out.append('+')
+        else:
+            out.append('%%%02X' % byte)
+    return ''.join(out)
+
+
+def _form_encode(pairs):
+    return '&'.join('%s=%s' % (_form_urlencode_value(k), _form_urlencode_value(v)) for k, v in pairs).encode('utf-8')
+
+
+def _url_host(url):
+    try:
+        return urllib.parse.urlsplit(url).hostname or ''
+    except ValueError:
+        return ''
+
+
+_CAST_CLIENT = None
+_CAST_CLIENT_LOCK = threading.Lock()
+
+
+def _cast_client():
+    """投屏拉切片复用同一个客户端：带 cookie jar，超时/insecure 跟着 CAST 配置走。"""
+    global _CAST_CLIENT
+    with _CAST_CLIENT_LOCK:
+        if _CAST_CLIENT is None:
+            _CAST_CLIENT = CastHttp(CAST.timeout, CAST.insecure)
+        else:
+            _CAST_CLIENT.timeout = max(float(CAST.timeout), 0.1)
+        return _CAST_CLIENT
+
+
+def _needs_signed_headers(host):
+    lower = (host or '').lower()
+    return 'liveali' in lower or 'liveten' in lower
+
+
+def _default_playback_headers(uid):
+    return {'UID': uid, 'APPID': CAST_AK, 'Referer': 'api.cctv.cn', 'User-Agent': CAST_UA}
+
+
+def _generate_app_random_str():
+    return '%08x-0000-%04x-0000-00000000%04x' % (
+        random.getrandbits(32), random.getrandbits(16), random.getrandbits(16))
+
+
+def _compute_vdn_code(app_secret, random_str=None):
+    r = random_str if random_str is not None else _generate_app_random_str()
+    return _md5_hex('%s%s%s' % (CAST_AK, app_secret, r)), r
+
+
+def _build_vdn_appcommon(version):
+    return json.dumps({'adid': '', 'av': version, 'an': CAST_VDN_APP_NAME, 'ap': CAST_UA},
+                      separators=(',', ':'), ensure_ascii=False, sort_keys=True)
+
+
+def _parse_result_code(value):
+    if isinstance(value, dict):
+        for key in ('result', 'code', 'errCode', 'errcode', 'ret'):
+            if key in value:
+                raw = value[key]
+                if isinstance(raw, bool):
+                    continue
+                if isinstance(raw, int):
+                    return raw
+                if isinstance(raw, str):
+                    try:
+                        return int(raw)
+                    except ValueError:
+                        pass
+        for key in ('data', 'error', 'response'):
+            if key in value:
+                found = _parse_result_code(value[key])
+                if found is not None:
+                    return found
+    return None
+
+
+def _extract_guid(value):
+    if isinstance(value, dict):
+        data = value.get('data')
+        if isinstance(data, dict):
+            guid = data.get('guid')
+            if isinstance(guid, str):
+                return guid
+    return ''
+
+
+def _root_headers(version):
+    return {'X-Uid': 'ROOT', 'X-Fingerprint': 'ROOT', 'X-Nonce': str(uuid.uuid4()),
+            'X-Timestamp': str(int(time.time() * 1000)), 'X-Version': version, 'UID': 'ROOT',
+            'Referer': 'api.cctv.cn', 'User-Agent': CAST_UA, 'appChannel': 'ROOT',
+            'Connection': 'Keep-Alive', 'Accept-Encoding': 'gzip'}
+
+
+# ==== 数据结构 ====
+
+class CastProfile(object):
+    __slots__ = ('android_id', 'mac', 'hardware', 'board', 'brand', 'device', 'manufacturer',
+                 'model', 'product', 'tags', 'build_type', 'user', 'resolution', 'display',
+                 'version_id', 'host', 'fingerprint', 'report_model')
+
+
+class CastIdentity(object):
+    __slots__ = ('x_uid', 'x_fingerprint', 'ts', 'headers')
+
+    def __init__(self, x_uid, x_fingerprint, ts, headers):
+        self.x_uid = x_uid
+        self.x_fingerprint = x_fingerprint
+        self.ts = ts
+        self.headers = headers
+
+
+class CastSession(object):
+    __slots__ = ('profile', 'identity', 'client', 'session_key', 'cloud_guid', 'version',
+                 'screen_param', 'cast_model', 'created_at', 'generation', 'linked_channels',
+                 'last_heartbeat_at', 'heartbeat_count', 'last_heartbeat_error')
+
+
+class CastEntry(object):
+    __slots__ = ('channel', 'live_id', 'final_url', 'playback_headers', 'android_id', 'x_uid',
+                 'rate', 'rate_name', 'final_host', 'refreshed_at', 'expires_at',
+                 'session_generation', 'last_error')
+
+    def fresh(self, now):
+        return bool(self.final_url) and now < self.expires_at
+
+    def stale_usable(self, now):
+        return bool(self.final_url) and now < self.expires_at + CAST_STALE_GRACE
+
+
+CAST_STALE_GRACE = 900.0
+
+# ==== 设备档案池（50+ 款 8K / 4K 电视，随机抽一台冒充投屏接收端）====
+
+CAST_DEVICE_POOL = [
+    {'source': "sony_8k_pool.XR-85Z9K", 'brand': "Sony", 'manufacturer': "Sony", 'model': "XR-85Z9K", 'report_model': "XR85Z9K", 'hardware': "mt5895", 'board': "mt5895", 'version_id': "SONYTV.2022.XR_85Z9K", 'screen_param': "7680-4320-280", 'cast_model': "XR-85Z9K"},
+    {'source': "sony_8k_pool.XR-75Z9K", 'brand': "Sony", 'manufacturer': "Sony", 'model': "XR-75Z9K", 'report_model': "XR75Z9K", 'hardware': "mt5895", 'board': "mt5895", 'version_id': "SONYTV.2022.XR_75Z9K", 'screen_param': "7680-4320-260", 'cast_model': "XR-75Z9K"},
+    {'source': "sony_8k_pool.XR-85Z9J", 'brand': "Sony", 'manufacturer': "Sony", 'model': "XR-85Z9J", 'report_model': "XR85Z9J", 'hardware': "mt5895", 'board': "mt5895", 'version_id': "SONYTV.2021.XR_85Z9J", 'screen_param': "7680-4320-280", 'cast_model': "XR-85Z9J"},
+    {'source': "sony_8k_pool.XR-75Z9J", 'brand': "Sony", 'manufacturer': "Sony", 'model': "XR-75Z9J", 'report_model': "XR75Z9J", 'hardware': "mt5895", 'board': "mt5895", 'version_id': "SONYTV.2021.XR_75Z9J", 'screen_param': "7680-4320-260", 'cast_model': "XR-75Z9J"},
+    {'source': "sony_8k_pool.KD-98ZG9", 'brand': "Sony", 'manufacturer': "Sony", 'model': "KD-98ZG9", 'report_model': "KD98ZG9", 'hardware': "mt5893", 'board': "mt5893", 'version_id': "SONYTV.2019.KD_98ZG9", 'screen_param': "7680-4320-320", 'cast_model': "KD-98ZG9"},
+    {'source': "sony_8k_pool.KD-85ZG9", 'brand': "Sony", 'manufacturer': "Sony", 'model': "KD-85ZG9", 'report_model': "KD85ZG9", 'hardware': "mt5893", 'board': "mt5893", 'version_id': "SONYTV.2019.KD_85ZG9", 'screen_param': "7680-4320-280", 'cast_model': "KD-85ZG9"},
+    {'source': "sony_8k_pool.KD-85ZH8", 'brand': "Sony", 'manufacturer': "Sony", 'model': "KD-85ZH8", 'report_model': "KD85ZH8", 'hardware': "mt5893", 'board': "mt5893", 'version_id': "SONYTV.2020.KD_85ZH8", 'screen_param': "7680-4320-280", 'cast_model': "KD-85ZH8"},
+    {'source': "sony_8k_pool.KD-75ZH8", 'brand': "Sony", 'manufacturer': "Sony", 'model': "KD-75ZH8", 'report_model': "KD75ZH8", 'hardware': "mt5893", 'board': "mt5893", 'version_id': "SONYTV.2020.KD_75ZH8", 'screen_param': "7680-4320-260", 'cast_model': "KD-75ZH8"},
+    {'source': "samsung_8k_pool.QA85QN900A", 'brand': "Samsung", 'manufacturer': "Samsung", 'model': "QA85QN900A", 'report_model': "QA85QN900A", 'hardware': "s5e9925", 'board': "neo8k", 'version_id': "SAMSUNGTV.2021.QN900A", 'screen_param': "7680-4320-280", 'cast_model': "QA85QN900A"},
+    {'source': "samsung_8k_pool.QA75QN900A", 'brand': "Samsung", 'manufacturer': "Samsung", 'model': "QA75QN900A", 'report_model': "QA75QN900A", 'hardware': "s5e9925", 'board': "neo8k", 'version_id': "SAMSUNGTV.2021.QN900A", 'screen_param': "7680-4320-260", 'cast_model': "QA75QN900A"},
+    {'source': "samsung_8k_pool.QA85QN900B", 'brand': "Samsung", 'manufacturer': "Samsung", 'model': "QA85QN900B", 'report_model': "QA85QN900B", 'hardware': "s5e9925", 'board': "neo8k", 'version_id': "SAMSUNGTV.2022.QN900B", 'screen_param': "7680-4320-280", 'cast_model': "QA85QN900B"},
+    {'source': "samsung_8k_pool.QA75QN900B", 'brand': "Samsung", 'manufacturer': "Samsung", 'model': "QA75QN900B", 'report_model': "QA75QN900B", 'hardware': "s5e9925", 'board': "neo8k", 'version_id': "SAMSUNGTV.2022.QN900B", 'screen_param': "7680-4320-260", 'cast_model': "QA75QN900B"},
+    {'source': "samsung_8k_pool.QA85QN900C", 'brand': "Samsung", 'manufacturer': "Samsung", 'model': "QA85QN900C", 'report_model': "QA85QN900C", 'hardware': "s5e9935", 'board': "neo8k", 'version_id': "SAMSUNGTV.2023.QN900C", 'screen_param': "7680-4320-280", 'cast_model': "QA85QN900C"},
+    {'source': "samsung_8k_pool.QA75QN900C", 'brand': "Samsung", 'manufacturer': "Samsung", 'model': "QA75QN900C", 'report_model': "QA75QN900C", 'hardware': "s5e9935", 'board': "neo8k", 'version_id': "SAMSUNGTV.2023.QN900C", 'screen_param': "7680-4320-260", 'cast_model': "QA75QN900C"},
+    {'source': "samsung_8k_pool.QA85QN900D", 'brand': "Samsung", 'manufacturer': "Samsung", 'model': "QA85QN900D", 'report_model': "QA85QN900D", 'hardware': "s5e9945", 'board': "neo8k", 'version_id': "SAMSUNGTV.2024.QN900D", 'screen_param': "7680-4320-280", 'cast_model': "QA85QN900D"},
+    {'source': "samsung_8k_pool.QA98QN990C", 'brand': "Samsung", 'manufacturer': "Samsung", 'model': "QA98QN990C", 'report_model': "QA98QN990C", 'hardware': "s5e9935", 'board': "neo8k", 'version_id': "SAMSUNGTV.2023.QN990C", 'screen_param': "7680-4320-320", 'cast_model': "QA98QN990C"},
+    {'source': "samsung_8k_pool.QA85QN800C", 'brand': "Samsung", 'manufacturer': "Samsung", 'model': "QA85QN800C", 'report_model': "QA85QN800C", 'hardware': "s5e9935", 'board': "neo8k", 'version_id': "SAMSUNGTV.2023.QN800C", 'screen_param': "7680-4320-280", 'cast_model': "QA85QN800C"},
+    {'source': "samsung_8k_pool.QA75QN800D", 'brand': "Samsung", 'manufacturer': "Samsung", 'model': "QA75QN800D", 'report_model': "QA75QN800D", 'hardware': "s5e9945", 'board': "neo8k", 'version_id': "SAMSUNGTV.2024.QN800D", 'screen_param': "7680-4320-260", 'cast_model': "QA75QN800D"},
+    {'source': "lg_8k_pool.OLED88Z1PCA", 'brand': "LG", 'manufacturer': "LGE", 'model': "OLED88Z1PCA", 'report_model': "OLED88Z1PCA", 'hardware': "alpha9gen4", 'board': "lg8k", 'version_id': "LGTV.2021.OLED88Z1", 'screen_param': "7680-4320-320", 'cast_model': "OLED88Z1PCA"},
+    {'source': "lg_8k_pool.OLED77Z1PCA", 'brand': "LG", 'manufacturer': "LGE", 'model': "OLED77Z1PCA", 'report_model': "OLED77Z1PCA", 'hardware': "alpha9gen4", 'board': "lg8k", 'version_id': "LGTV.2021.OLED77Z1", 'screen_param': "7680-4320-260", 'cast_model': "OLED77Z1PCA"},
+    {'source': "lg_8k_pool.OLED88Z2PCA", 'brand': "LG", 'manufacturer': "LGE", 'model': "OLED88Z2PCA", 'report_model': "OLED88Z2PCA", 'hardware': "alpha9gen5", 'board': "lg8k", 'version_id': "LGTV.2022.OLED88Z2", 'screen_param': "7680-4320-320", 'cast_model': "OLED88Z2PCA"},
+    {'source': "lg_8k_pool.OLED77Z2PCA", 'brand': "LG", 'manufacturer': "LGE", 'model': "OLED77Z2PCA", 'report_model': "OLED77Z2PCA", 'hardware': "alpha9gen5", 'board': "lg8k", 'version_id': "LGTV.2022.OLED77Z2", 'screen_param': "7680-4320-260", 'cast_model': "OLED77Z2PCA"},
+    {'source': "lg_8k_pool.OLED88Z3PCA", 'brand': "LG", 'manufacturer': "LGE", 'model': "OLED88Z3PCA", 'report_model': "OLED88Z3PCA", 'hardware': "alpha9gen6", 'board': "lg8k", 'version_id': "LGTV.2023.OLED88Z3", 'screen_param': "7680-4320-320", 'cast_model': "OLED88Z3PCA"},
+    {'source': "lg_8k_pool.OLED77Z3PCA", 'brand': "LG", 'manufacturer': "LGE", 'model': "OLED77Z3PCA", 'report_model': "OLED77Z3PCA", 'hardware': "alpha9gen6", 'board': "lg8k", 'version_id': "LGTV.2023.OLED77Z3", 'screen_param': "7680-4320-260", 'cast_model': "OLED77Z3PCA"},
+    {'source': "lg_8k_pool.OLED88Z4PCA", 'brand': "LG", 'manufacturer': "LGE", 'model': "OLED88Z4PCA", 'report_model': "OLED88Z4PCA", 'hardware': "alpha9gen7", 'board': "lg8k", 'version_id': "LGTV.2024.OLED88Z4", 'screen_param': "7680-4320-320", 'cast_model': "OLED88Z4PCA"},
+    {'source': "lg_8k_pool.86QNED99", 'brand': "LG", 'manufacturer': "LGE", 'model': "86QNED99", 'report_model': "86QNED99", 'hardware': "alpha9gen4", 'board': "lg8k", 'version_id': "LGTV.2021.86QNED99", 'screen_param': "7680-4320-300", 'cast_model': "86QNED99"},
+    {'source': "sony_4k_pool.XR-85X95K", 'brand': "Sony", 'manufacturer': "Sony", 'model': "XR-85X95K", 'report_model': "XR85X95K", 'hardware': "mt5895", 'board': "mt5895", 'version_id': "SONYTV.2022.XR_85X95K", 'screen_param': "3840-2160-300", 'cast_model': "XR-85X95K"},
+    {'source': "sony_4k_pool.XR-75X95K", 'brand': "Sony", 'manufacturer': "Sony", 'model': "XR-75X95K", 'report_model': "XR75X95K", 'hardware': "mt5895", 'board': "mt5895", 'version_id': "SONYTV.2022.XR_75X95K", 'screen_param': "3840-2160-280", 'cast_model': "XR-75X95K"},
+    {'source': "sony_4k_pool.XR-65X90K", 'brand': "Sony", 'manufacturer': "Sony", 'model': "XR-65X90K", 'report_model': "XR65X90K", 'hardware': "mt5895", 'board': "mt5895", 'version_id': "SONYTV.2022.XR_65X90K", 'screen_param': "3840-2160-260", 'cast_model': "XR-65X90K"},
+    {'source': "sony_4k_pool.XR-55X90K", 'brand': "Sony", 'manufacturer': "Sony", 'model': "XR-55X90K", 'report_model': "XR55X90K", 'hardware': "mt5895", 'board': "mt5895", 'version_id': "SONYTV.2022.XR_55X90K", 'screen_param': "3840-2160-240", 'cast_model': "XR-55X90K"},
+    {'source': "sony_4k_pool.XR-65A95K", 'brand': "Sony", 'manufacturer': "Sony", 'model': "XR-65A95K", 'report_model': "XR65A95K", 'hardware': "mt5895", 'board': "mt5895", 'version_id': "SONYTV.2022.XR_65A95K", 'screen_param': "3840-2160-260", 'cast_model': "XR-65A95K"},
+    {'source': "samsung_4k_pool.QA85QN90C", 'brand': "Samsung", 'manufacturer': "Samsung", 'model': "QA85QN90C", 'report_model': "QA85QN90C", 'hardware': "s5e9935", 'board': "neo4k", 'version_id': "SAMSUNGTV.2023.QN90C", 'screen_param': "3840-2160-300", 'cast_model': "QA85QN90C"},
+    {'source': "samsung_4k_pool.QA75QN90C", 'brand': "Samsung", 'manufacturer': "Samsung", 'model': "QA75QN90C", 'report_model': "QA75QN90C", 'hardware': "s5e9935", 'board': "neo4k", 'version_id': "SAMSUNGTV.2023.QN90C", 'screen_param': "3840-2160-280", 'cast_model': "QA75QN90C"},
+    {'source': "samsung_4k_pool.QA65QN90C", 'brand': "Samsung", 'manufacturer': "Samsung", 'model': "QA65QN90C", 'report_model': "QA65QN90C", 'hardware': "s5e9935", 'board': "neo4k", 'version_id': "SAMSUNGTV.2023.QN90C", 'screen_param': "3840-2160-260", 'cast_model': "QA65QN90C"},
+    {'source': "samsung_4k_pool.QA55QN90C", 'brand': "Samsung", 'manufacturer': "Samsung", 'model': "QA55QN90C", 'report_model': "QA55QN90C", 'hardware': "s5e9935", 'board': "neo4k", 'version_id': "SAMSUNGTV.2023.QN90C", 'screen_param': "3840-2160-240", 'cast_model': "QA55QN90C"},
+    {'source': "samsung_4k_pool.QA65S95C", 'brand': "Samsung", 'manufacturer': "Samsung", 'model': "QA65S95C", 'report_model': "QA65S95C", 'hardware': "s5e9935", 'board': "oled4k", 'version_id': "SAMSUNGTV.2023.S95C", 'screen_param': "3840-2160-260", 'cast_model': "QA65S95C"},
+    {'source': "lg_4k_pool.OLED83C3PCA", 'brand': "LG", 'manufacturer': "LGE", 'model': "OLED83C3PCA", 'report_model': "OLED83C3PCA", 'hardware': "alpha9gen6", 'board': "lg4k", 'version_id': "LGTV.2023.OLED83C3", 'screen_param': "3840-2160-300", 'cast_model': "OLED83C3PCA"},
+    {'source': "lg_4k_pool.OLED77C3PCA", 'brand': "LG", 'manufacturer': "LGE", 'model': "OLED77C3PCA", 'report_model': "OLED77C3PCA", 'hardware': "alpha9gen6", 'board': "lg4k", 'version_id': "LGTV.2023.OLED77C3", 'screen_param': "3840-2160-280", 'cast_model': "OLED77C3PCA"},
+    {'source': "lg_4k_pool.OLED65C3PCA", 'brand': "LG", 'manufacturer': "LGE", 'model': "OLED65C3PCA", 'report_model': "OLED65C3PCA", 'hardware': "alpha9gen6", 'board': "lg4k", 'version_id': "LGTV.2023.OLED65C3", 'screen_param': "3840-2160-260", 'cast_model': "OLED65C3PCA"},
+    {'source': "lg_4k_pool.OLED55C3PCA", 'brand': "LG", 'manufacturer': "LGE", 'model': "OLED55C3PCA", 'report_model': "OLED55C3PCA", 'hardware': "alpha9gen6", 'board': "lg4k", 'version_id': "LGTV.2023.OLED55C3", 'screen_param': "3840-2160-240", 'cast_model': "OLED55C3PCA"},
+    {'source': "lg_4k_pool.86QNED90", 'brand': "LG", 'manufacturer': "LGE", 'model': "86QNED90", 'report_model': "86QNED90", 'hardware': "alpha7gen5", 'board': "lg4k", 'version_id': "LGTV.2022.86QNED90", 'screen_param': "3840-2160-300", 'cast_model': "86QNED90"},
+    {'source': "tcl_8k_pool.85X925PRO", 'brand': "TCL", 'manufacturer': "TCL", 'model': "85X925 PRO", 'report_model': "85X925PRO", 'hardware': "mt9615", 'board': "tcl8k", 'version_id': "TCLTV.2021.X925PRO", 'screen_param': "7680-4320-280", 'cast_model': "85X925 PRO"},
+    {'source': "tcl_8k_pool.75X925PRO", 'brand': "TCL", 'manufacturer': "TCL", 'model': "75X925 PRO", 'report_model': "75X925PRO", 'hardware': "mt9615", 'board': "tcl8k", 'version_id': "TCLTV.2021.X925PRO", 'screen_param': "7680-4320-260", 'cast_model': "75X925 PRO"},
+    {'source': "tcl_4k_pool.85C845", 'brand': "TCL", 'manufacturer': "TCL", 'model': "85C845", 'report_model': "85C845", 'hardware': "mt9615", 'board': "tcl4k", 'version_id': "TCLTV.2023.C845", 'screen_param': "3840-2160-300", 'cast_model': "85C845"},
+    {'source': "tcl_4k_pool.75C845", 'brand': "TCL", 'manufacturer': "TCL", 'model': "75C845", 'report_model': "75C845", 'hardware': "mt9615", 'board': "tcl4k", 'version_id': "TCLTV.2023.C845", 'screen_param': "3840-2160-280", 'cast_model': "75C845"},
+    {'source': "tcl_4k_pool.65C845", 'brand': "TCL", 'manufacturer': "TCL", 'model': "65C845", 'report_model': "65C845", 'hardware': "mt9615", 'board': "tcl4k", 'version_id': "TCLTV.2023.C845", 'screen_param': "3840-2160-260", 'cast_model': "65C845"},
+    {'source': "tcl_4k_pool.75C745", 'brand': "TCL", 'manufacturer': "TCL", 'model': "75C745", 'report_model': "75C745", 'hardware': "mt9615", 'board': "tcl4k", 'version_id': "TCLTV.2023.C745", 'screen_param': "3840-2160-280", 'cast_model': "75C745"},
+    {'source': "tcl_4k_pool.65C745", 'brand': "TCL", 'manufacturer': "TCL", 'model': "65C745", 'report_model': "65C745", 'hardware': "mt9615", 'board': "tcl4k", 'version_id': "TCLTV.2023.C745", 'screen_param': "3840-2160-260", 'cast_model': "65C745"},
+    {'source': "changhong_4k_pool.U65G7", 'brand': "CHANGHONG", 'manufacturer': "CHANGHONG", 'model': "U65G7", 'report_model': "U65G7", 'hardware': "mt9632", 'board': "changhong4k", 'version_id': "CHANGHONGTV.2022.U65G7", 'screen_param': "3840-2160-260", 'cast_model': "U65G7"},
+    {'source': "changhong_4k_pool.U55G7", 'brand': "CHANGHONG", 'manufacturer': "CHANGHONG", 'model': "U55G7", 'report_model': "U55G7", 'hardware': "mt9632", 'board': "changhong4k", 'version_id': "CHANGHONGTV.2022.U55G7", 'screen_param': "3840-2160-240", 'cast_model': "U55G7"},
+    {'source': "changhong_4k_pool.L55QCN1", 'brand': "CHANGHONG", 'manufacturer': "CHANGHONG", 'model': "L55QCN1", 'report_model': "L55QCN1", 'hardware': "mt9632", 'board': "changhong4k", 'version_id': "CHANGHONGTV.2021.L55QCN1", 'screen_param': "3840-2160-240", 'cast_model': "L55QCN1"},
+    {'source': "changhong_4k_pool.U43QCN1", 'brand': "CHANGHONG", 'manufacturer': "CHANGHONG", 'model': "U43QCN1", 'report_model': "U43QCN1", 'hardware': "mt9632", 'board': "changhong4k", 'version_id': "CHANGHONGTV.2021.U43QCN1", 'screen_param': "3840-2160-220", 'cast_model': "U43QCN1"},
+    {'source': "changhong_4k_pool.UD65YC5500UA", 'brand': "CHANGHONG", 'manufacturer': "CHANGHONG", 'model': "UD65YC5500UA", 'report_model': "UD65YC5500UA", 'hardware': "mt9632", 'board': "changhong4k", 'version_id': "CHANGHONGTV.2020.UD65YC5500UA", 'screen_param': "3840-2160-260", 'cast_model': "UD65YC5500UA"},
+]
+
+
+def _random_device_template(prefer_4k=False):
+    if prefer_4k:
+        pool_4k = [t for t in CAST_DEVICE_POOL if '8k' not in str(t.get('source', ''))]
+        if pool_4k:
+            return random.choice(pool_4k)
+    pool = [t for t in CAST_DEVICE_POOL if '8k' in str(t.get('source', ''))]
+    return random.choice(pool or CAST_DEVICE_POOL)
+
+
+def _device_profile_from_template(tpl, android_id, mac):
+    p = CastProfile()
+    brand_id = _sanitize_profile_id(tpl['brand'])
+    model_id = _sanitize_profile_id(tpl['model'])
+    p.android_id = android_id
+    p.mac = mac
+    p.hardware = tpl['hardware']
+    p.board = tpl['board']
+    p.brand = tpl['brand']
+    p.manufacturer = tpl['manufacturer']
+    p.model = tpl['model']
+    p.report_model = tpl.get('report_model') or tpl['model']
+    p.device = '%s_%s' % (brand_id, model_id)
+    p.product = '%s_%s' % (brand_id, model_id)
+    p.tags = 'release-keys'
+    p.build_type = 'user'
+    p.user = 'build'
+    p.resolution = _resolution_from_screen_param(tpl['screen_param'])
+    p.display = '%s-user 13 %s 2024 release-keys' % (tpl['model'], tpl['version_id'])
+    p.version_id = tpl['version_id']
+    p.host = '%s-tv-build' % brand_id
+    p.fingerprint = '%s/%s/%s:13/%s/2024:user/release-keys' % (
+        tpl['manufacturer'], p.product, p.device, tpl['version_id'])
+    return p
+
+
+def _infer_os_version(p):
+    if ':' in p.fingerprint:
+        tail = p.fingerprint.split(':', 1)[1]
+        if '/' in tail:
+            return tail.split('/', 1)[0]
+    return ''
+
+
+def _infer_sdk_int(p):
+    major = _infer_os_version(p).split('.')[0] if _infer_os_version(p) else ''
+    return {'13': '33', '12': '31', '11': '30', '10': '29', '9': '28', '8': '26',
+            '7': '24', '6': '23'}.get(major, '')
+
+
+def _compute_x_uid(p):
+    build = ('1698' + p.hardware + p.board + p.brand + p.device + p.manufacturer + p.model
+             + p.product + p.tags + p.build_type + p.user + p.resolution + p.mac)
+    uuid_part = _java_uuid_from_hashes(_java_hashcode(build), _java_hashcode(p.model))
+    return _sha1_upper('%s|%s' % (p.android_id, uuid_part))
+
+
+def _build_identity(p, app_channel, version):
+    x_uid = _compute_x_uid(p)
+    fp, ts, _day0 = _compute_fingerprint(x_uid, int(time.time() * 1000))
     headers = {
-        'Content-Type': 'application/x-www-form-urlencoded', 'Charset': 'UTF-8',
-        'User-Agent': 'Dalvik/2.1.0 (Linux; U; Android 13; %s Build/%s)' % (p['model'], p['version_id']),
-        'X-Uid': xuid, 'X-Fingerprint': xuid, 'X-Version': YSPTP_VERSION,
-        'Connection': 'Keep-Alive', 'Accept-Encoding': 'gzip',
+        'Accept': 'application/json', 'Accept-Language': CAST_ACCEPT_LANGUAGE,
+        'Referer': 'api.cctv.cn', 'User-Agent': CAST_UA, 'UID': p.android_id,
+        'appChannel': app_channel, 'X-Uid': x_uid, 'X-Fingerprint': fp,
+        'X-Version': version, 'Content-Type': 'application/json; charset=utf-8',
+        'Connection': 'Keep-Alive', 'Accept-Encoding': 'gzip', 'Cache-Control': 'no-cache',
     }
-    st, txt, _ = _ysptp_http('https://collect.cctv.cn/cctvmobileinf/rest/cctv/receive/new/app',
-                              headers, urllib.parse.urlencode({'info': info}))
-    if st < 200 or st >= 300:
-        raise RuntimeError('collect HTTP %d: %s' % (st, txt[:200]))
+    return CastIdentity(x_uid, fp, ts, headers)
 
 
-def _ysptp_dictionary():
-    headers = {
-        'X-Uid': 'ROOT', 'X-Fingerprint': 'ROOT', 'X-Nonce': str(uuid.uuid4()),
-        'X-Timestamp': str(_ysptp_now_ms()), 'X-Version': YSPTP_VERSION, 'UID': 'ROOT',
-        'Referer': 'api.cctv.cn', 'User-Agent': YSPTP_UA, 'appChannel': 'ROOT',
-        'Connection': 'Keep-Alive', 'Accept-Encoding': 'gzip',
+def _fresh_headers(template, content_type, accept=None, force_ts=None):
+    headers = {}
+    if accept is not None:
+        headers['Accept'] = accept
+    headers['X-Timestamp'] = str(force_ts if force_ts is not None else int(time.time() * 1000))
+    headers['X-Nonce'] = str(uuid.uuid4())
+    for key in ('Accept-Language', 'Referer', 'User-Agent', 'UID', 'appChannel',
+                'X-Uid', 'X-Fingerprint', 'X-Version'):
+        if key in template:
+            headers[key] = template[key]
+    if content_type:
+        headers['Content-Type'] = content_type
+    for key in ('Connection', 'Accept-Encoding', 'Cache-Control'):
+        if key in template:
+            headers[key] = template[key]
+    return headers
+
+
+def _report_common_value(p, x_uid, app_channel, version, sdk_version, ts_ms):
+    def f(v, limit):
+        return str(v)[:limit] if limit >= 0 else str(v)
+    model = p.report_model or p.model.replace(p.manufacturer, '').replace(' ', '')
+    return {
+        'cctv_id': f(x_uid, 64), 'device_id': f(p.android_id, 64), 'idfa': '', 'idfv': '',
+        'user_id': '', 'app_key': f(CAST_REPORT_APP_KEY, 64), 'imei': '',
+        'android_id': f(p.android_id, 64), 'mac': f(p.mac, 64),
+        'device_builder_type': f(p.build_type, 64), 'device_hardware': f(p.hardware, 64),
+        'device_board': f(p.board, 64), 'device_brand': f(p.brand, 64),
+        'device_params': f(p.device, 64), 'device_display': f(p.display, 64),
+        'device_version_id': f(p.version_id, 64), 'device_host': f(p.host, 128),
+        'device_product': f(p.product, 64), 'device_tags': f(p.tags, 64),
+        'device_user': f(p.user, 30), 'device_fingerprint': f(p.fingerprint, 128),
+        'device_manufacturer': f(p.manufacturer, 64), 'device_model': f(model, 50),
+        'device_resolution': f(p.resolution, 20), 'system_type': 'Android', 'device_type': 'TV',
+        'app_language': 'CHINESE', 'app_version': f(version, 30),
+        'sdk_version': f(sdk_version, 30), 'os_version': f(_infer_os_version(p), 20),
+        'app_channel': f(app_channel, 50), 'data_time': f(ts_ms, 13),
     }
-    st, _, _ = _ysptp_http(YSPTP_DICTIONARY, headers)
-    if st < 200 or st >= 300:
-        raise RuntimeError('dictionary HTTP %d' % st)
 
 
-def _ysptp_app_start(ident, p):
-    ts = _ysptp_now_ms()
-    ident['x_fingerprint'] = _ysptp_fingerprint(ident['x_uid'], ts)
-    body = {'key': 'app_start_d1', 'value': {
-        'cctv_id': ident['x_uid'][:64], 'device_id': p['android_id'], 'idfa': '', 'idfv': '',
-        'user_id': '', 'app_key': '1178c84d-4818-44ff-b415-02106e87e144', 'imei': '',
-        'android_id': p['android_id'], 'mac': p['mac'], 'device_builder_type': p['build_type'],
-        'device_hardware': p['hardware'], 'device_board': p['board'], 'device_brand': p['brand'],
-        'device_params': p['device'], 'device_display': p['display'],
-        'device_version_id': p['version_id'], 'device_host': p['host'], 'device_product': p['product'],
-        'device_tags': p['tags'], 'device_user': p['user'], 'device_fingerprint': p['fingerprint'],
-        'device_manufacturer': p['manufacturer'], 'device_model': p['report_model'],
-        'device_resolution': p['resolution'], 'system_type': 'Android', 'device_type': 'TV',
-        'app_language': 'CHINESE', 'app_version': YSPTP_VERSION, 'sdk_version': '',
-        'os_version': '13', 'app_channel': YSPTP_APP_CHANNEL, 'data_time': str(_ysptp_now_ms()),
-    }}
-    headers = _ysptp_headers(ident, 'application/json; charset=utf-8', 'application/json', ts)
-    headers['UID'] = ''
-    st, txt, _ = _ysptp_http(YSPTP_APP_START, headers,
-                             json.dumps(body, ensure_ascii=False, separators=(',', ':')))
-    if st < 200 or st >= 300:
-        raise RuntimeError('app/start HTTP %d: %s' % (st, txt[:200]))
-    j = json.loads(txt.decode('utf-8', 'replace'))
-    d = j.get('data')
-    if isinstance(d, dict): enc = d.get('key', '')
-    elif isinstance(d, str): enc = d
-    else: enc = ''
-    if not enc: raise RuntimeError('app/start missing key')
-    return _ysptp_aes_gcm_decrypt_b64(enc, ident['x_fingerprint'][:32])
+def _collect_headers(p):
+    release = _infer_os_version(p)
+    return {'Content-type': 'application/x-www-form-urlencoded', 'Charset': 'UTF-8',
+            'User-Agent': 'Dalvik/2.1.0 (Linux; U; Android %s; %s Build/%s)'
+                          % (release or 'Android', p.model, p.version_id),
+            'Connection': 'Keep-Alive', 'Accept-Encoding': 'gzip'}
 
 
-def _ysptp_report_single(ident, body, uid_override=None):
-    headers = _ysptp_headers(ident)
-    if uid_override is not None: headers['UID'] = uid_override
-    st, _, _ = _ysptp_http('https://ytpdata.cctv.cn/das/app/data/message/single', headers,
-                            json.dumps(body, ensure_ascii=False, separators=(',', ':')))
-    if st < 200 or st >= 300:
-        raise RuntimeError('report HTTP %d' % st)
+# ==== 投屏专用 HTTP 客户端（不借容器 fetch，避免头部被改写）====
 
+class CastHttp(object):
+    def __init__(self, timeout, insecure):
+        self.timeout = max(float(timeout), 0.1)
+        ctx = ssl._create_unverified_context() if insecure else ssl.create_default_context()
+        jar = http.cookiejar.CookieJar()
+        self.opener = urllib.request.build_opener(
+            urllib.request.HTTPCookieProcessor(jar), urllib.request.HTTPSHandler(context=ctx))
 
-def _ysptp_app_event(ident, p):
-    t = _ysptp_now_ms()
-    v = {
-        'cctv_id': ident['x_uid'][:64], 'device_id': p['android_id'], 'idfa': '', 'idfv': '',
-        'user_id': '', 'app_key': '1178c84d-4818-44ff-b415-02106e87e144', 'imei': '',
-        'android_id': p['android_id'], 'mac': p['mac'], 'device_builder_type': p['build_type'],
-        'device_hardware': p['hardware'], 'device_board': p['board'], 'device_brand': p['brand'],
-        'device_params': p['device'], 'device_display': p['display'],
-        'device_version_id': p['version_id'], 'device_host': p['host'], 'device_product': p['product'],
-        'device_tags': p['tags'], 'device_user': p['user'], 'device_fingerprint': p['fingerprint'],
-        'device_manufacturer': p['manufacturer'], 'device_model': p['report_model'],
-        'device_resolution': p['resolution'], 'system_type': 'Android', 'device_type': 'TV',
-        'app_language': 'CHINESE', 'app_version': YSPTP_VERSION, 'sdk_version': '',
-        'os_version': '13', 'app_channel': YSPTP_APP_CHANNEL, 'data_time': str(t),
-        'event_id': 'app_start', 'event_name': '应用启动', 'event_time': str(t),
-        'network_type': 'WIFI', 'cur_version': YSPTP_VERSION, 'channel': YSPTP_APP_CHANNEL,
-        'pre_version': YSPTP_VERSION,
-    }
-    _ysptp_report_single(ident, {'key': 'event', 'value': v}, uid_override='')
-
-
-def _ysptp_page_event(ident, p):
-    end = _ysptp_now_ms(); start = end - 1000
-    v = {
-        'cctv_id': ident['x_uid'][:64], 'device_id': p['android_id'], 'idfa': '', 'idfv': '',
-        'user_id': '', 'app_key': '1178c84d-4818-44ff-b415-02106e87e144', 'imei': '',
-        'android_id': p['android_id'], 'mac': p['mac'], 'device_builder_type': p['build_type'],
-        'device_hardware': p['hardware'], 'device_board': p['board'], 'device_brand': p['brand'],
-        'device_params': p['device'], 'device_display': p['display'],
-        'device_version_id': p['version_id'], 'device_host': p['host'], 'device_product': p['product'],
-        'device_tags': p['tags'], 'device_user': p['user'], 'device_fingerprint': p['fingerprint'],
-        'device_manufacturer': p['manufacturer'], 'device_model': p['report_model'],
-        'device_resolution': p['resolution'], 'system_type': 'Android', 'device_type': 'TV',
-        'app_language': 'CHINESE', 'app_version': YSPTP_VERSION, 'sdk_version': '',
-        'os_version': '13', 'app_channel': YSPTP_APP_CHANNEL, 'data_time': str(end + 2),
-        'start_time': str(start), 'end_time': str(end), 'duration': '1000',
-        'page_name': 'com.cctv.tv.mvp.ui.activity.MainActivity', 'session_id': str(uuid.uuid4()),
-        'network_type': 'WIFI',
-    }
-    _ysptp_report_single(ident, {'key': 'page_d1', 'value': v})
-
-
-def _ysptp_heartbeat(ident, p):
-    t = _ysptp_now_ms()
-    v = {
-        'cctv_id': ident['x_uid'][:64], 'device_id': p['android_id'], 'idfa': '', 'idfv': '',
-        'user_id': '', 'app_key': '1178c84d-4818-44ff-b415-02106e87e144', 'imei': '',
-        'android_id': p['android_id'], 'mac': p['mac'], 'device_builder_type': p['build_type'],
-        'device_hardware': p['hardware'], 'device_board': p['board'], 'device_brand': p['brand'],
-        'device_params': p['device'], 'device_display': p['display'],
-        'device_version_id': p['version_id'], 'device_host': p['host'], 'device_product': p['product'],
-        'device_tags': p['tags'], 'device_user': p['user'], 'device_fingerprint': p['fingerprint'],
-        'device_manufacturer': p['manufacturer'], 'device_model': p['report_model'],
-        'device_resolution': p['resolution'], 'system_type': 'Android', 'device_type': 'TV',
-        'app_language': 'CHINESE', 'app_version': YSPTP_VERSION, 'sdk_version': '',
-        'os_version': '13', 'app_channel': YSPTP_APP_CHANNEL, 'data_time': str(t),
-        'network_type': 'WiFi', 'guid': '', 'other': '',
-    }
-    _ysptp_report_single(ident, {'key': 'app_heartbeat', 'value': v})
-
-
-def _ysptp_index_flow(ident):
-    st, _, _ = _ysptp_http('https://ytpaddr.cctv.cn/gsnw/api/index/v1/01', _ysptp_headers(ident),
-                            json.dumps({'channel': YSPTP_APP_CHANNEL, 'source': 'application'}, ensure_ascii=False))
-    if st < 200 or st >= 300: raise RuntimeError('index HTTP %d' % st)
-
-
-def _ysptp_warmup(ident):
-    appcommon = json.dumps({'adid': '', 'av': YSPTP_VERSION, 'an': YSPTP_VDN_APP, 'ap': 'cctv_app_tv'},
-                           ensure_ascii=False, separators=(',', ':'))
-    st, _, _ = _ysptp_http('https://ytpaddr.cctv.cn/gsnw/drm/config/obtain/v1',
-                           _ysptp_headers(ident, 'application/x-www-form-urlencoded', None),
-                           urllib.parse.urlencode({'appcommon': appcommon}))
-    if st < 200 or st >= 300: raise RuntimeError('drm HTTP %d' % st)
-    url = 'https://ytpaddr.cctv.cn/gsnw/version/config/obtain/v1?' + urllib.parse.urlencode({'appcommon': appcommon})
-    st, _, _ = _ysptp_http(url, _ysptp_headers(ident, '', None), method='GET')
-    if st < 200 or st >= 300: raise RuntimeError('version HTTP %d' % st)
-
-
-def _ysptp_live01(ident, state, session_key, live_id):
-    body = {
-        'screenParam': state['screen_param'], 'rate': '', 'systemType': 'ios',
-        'model': state['cast_model'], 'id': live_id,
-        'userId': 'BAEBFF2B-C516-4F34-ABC0-A824A6461CBD', 'clientSign': 'cctvVideo',
-        'deviceId': {'serial': '', 'imei': '', 'android_id': ''},
-    }
-    st, txt, _ = _ysptp_http(YSPTP_LIVE_01, _ysptp_headers(ident),
-                              json.dumps(body, ensure_ascii=False, separators=(',', ':')))
-    if st < 200 or st >= 300: raise RuntimeError('live/01 HTTP %d' % st)
-    j = json.loads(txt.decode('utf-8', 'replace'))
-    videos = j.get('data', {}).get('videoList') or j.get('data', {}).get('videos') or []
-    pick = None; fallback = None
-    for v in videos:
-        if not v.get('url'): continue
-        if fallback is None: fallback = v
-        if v.get('rate') == '36p': pick = v; break
-    v = pick or fallback
-    if not v: raise RuntimeError('live/01 no url')
-    url = v['url']
-    if not re.match(r'^https?://', url, re.I):
-        url = _ysptp_aes_gcm_decrypt_b64(url, session_key)
-    return {'url': url, 'rate': v.get('rate', ''), 'rateName': v.get('rateName', '')}
-
-
-def _ysptp_live02(ident, session_key):
-    enc = _ysptp_aes_gcm_encrypt_b64('', session_key)
-    st, txt, _ = _ysptp_http(YSPTP_LIVE_02, _ysptp_headers(ident), json.dumps({'guid': enc}))
-    if st < 200 or st >= 300: raise RuntimeError('live/02 HTTP %d' % st)
-    j = json.loads(txt.decode('utf-8', 'replace'))
-    d = j.get('data', {})
-    enc = d.get('appSecret') or d.get('app_secret') or (d if isinstance(d, str) else '')
-    if not enc: raise RuntimeError('live/02 no appSecret')
-    return _ysptp_aes_gcm_decrypt_b64(enc, session_key)
-
-
-def _ysptp_vdn(ident, live_url, secret):
-    r = '%08x-0000-%04x-0000-00000000%04x' % (
-        random.randint(0, 0xffffffff), random.randint(0, 0xffff), random.randint(0, 0xffff))
-    sign = _md5_hex(AK + secret + r)
-    appcommon = json.dumps({'adid': '', 'av': YSPTP_VERSION, 'an': YSPTP_VDN_APP, 'ap': 'cctv_app_tv'},
-                           ensure_ascii=False, separators=(',', ':'))
-    headers = _ysptp_headers(ident, 'application/x-www-form-urlencoded', None)
-    headers['APPID'] = AK; headers['APPSIGN'] = sign; headers['APPRANDOMSTR'] = r
-    st, txt, _ = _ysptp_http(YSPTP_VDN, headers,
-                              urllib.parse.urlencode({'appcommon': appcommon, 'url': live_url}))
-    if st < 200 or st >= 300: raise RuntimeError('VDN HTTP %d' % st)
-    j = json.loads(txt.decode('utf-8', 'replace'))
-    if str(j.get('succeed', '')) != '1' or not j.get('url'):
-        raise RuntimeError('VDN no url')
-    return {'url': j['url'], 'sign': sign, 'random': r}
-
-
-_YSPTP_ENTRY_CACHE = {}
-_YSPTP_ENTRY_LOCK = threading.Lock()
-
-
-def ysptp_resolve(live_id, slug=''):
-    with _YSPTP_ENTRY_LOCK:
-        now = _ysptp_now_s()
-        if slug and slug in _YSPTP_ENTRY_CACHE:
-            e = _YSPTP_ENTRY_CACHE[slug]
-            if now < e['expires_at'] - _YSPTP_REFRESH_MARGIN:
-                return e
-        state = _ysptp_load_state()
-        p = state['profile']
-        ident = _ysptp_build_identity(p)
-        try: _ysptp_collect_report(p, ident['x_uid'])
-        except Exception as e: _log('ysptp collect skip: %s' % e)
-        try: _ysptp_dictionary()
-        except Exception as e: _log('ysptp dict skip: %s' % e)
-        session = _ysptp_app_start(ident, p)
+    def _send(self, method, url, headers, data):
+        req = urllib.request.Request(url, data=data, method=method)
+        for k, v in (headers or {}).items():
+            try:
+                req.add_header(k, str(v))
+            except Exception:
+                pass
         try:
-            _ysptp_app_event(ident, p); _ysptp_page_event(ident, p)
-            _ysptp_heartbeat(ident, p); _ysptp_index_flow(ident); _ysptp_warmup(ident)
+            try:
+                with self.opener.open(req, timeout=self.timeout) as resp:
+                    status, hdrs, body = resp.status, dict(resp.headers.items()), resp.read()
+            except urllib.error.HTTPError as e:
+                status = e.code
+                hdrs = dict(e.headers.items()) if getattr(e, 'headers', None) else {}
+                try:
+                    body = e.read()
+                except Exception:
+                    body = b''
         except Exception as e:
-            _log('ysptp warmup skip: %s' % e)
-        l1 = _ysptp_live01(ident, state, session, live_id)
-        secret = _ysptp_live02(ident, session)
-        v = _ysptp_vdn(ident, l1['url'], secret)
-        entry = {
-            'final_url': v['url'],
-            'headers': {'UID': p['android_id'], 'APPID': AK, 'Referer': 'api.cctv.cn',
-                        'User-Agent': YSPTP_UA, 'APPRANDOMSTR': v['random'], 'APPSIGN': v['sign']},
-            'rate': l1['rate'], 'rate_name': l1['rateName'],
-            'expires_at': now + _YSPTP_CACHE_TTL,
-        }
-        if slug: _YSPTP_ENTRY_CACHE[slug] = entry
+            raise CastError('network error: %s: %s' % (type(e).__name__, e))
+        low = {str(k).lower(): v for k, v in hdrs.items()}
+        if 'gzip' in str(low.get('content-encoding', '')).lower():
+            try:
+                body = gzip.decompress(body)
+            except Exception:
+                pass
+        return status, body, low
+
+    def get(self, url, headers):
+        return self._send('GET', url, headers, None)
+
+    def post_bytes(self, url, headers, data):
+        return self._send('POST', url, headers, data)
+
+    def post_json(self, url, headers, body):
+        return self._send('POST', url, headers,
+                          json.dumps(body, separators=(',', ':'), ensure_ascii=False,
+                                     sort_keys=True).encode('utf-8'))
+
+    def post_form(self, url, headers, pairs):
+        return self._send('POST', url, headers, _form_encode(pairs))
+
+
+def _cast_json(status, body):
+    try:
+        return json.loads(body.decode('utf-8', 'replace'))
+    except Exception:
+        return None
+
+
+# ==== 全局请求流控（避免打太快被风控）====
+
+class CastLimiter(object):
+    def __init__(self, interval, jitter):
+        self.interval = float(interval)
+        self.jitter = float(jitter)
+        self.lock = threading.Lock()
+        self.last_end = 0.0
+
+    def __call__(self, name=''):
+        with self.lock:
+            wait = self.interval - (time.time() - self.last_end)
+            if wait > 0:
+                time.sleep(wait + random.uniform(0, self.jitter))
+            self.last_end = time.time()
+
+
+# ==== 投屏解析器 ====
+
+class CastResolver(object):
+    """设备投屏源内核：角色扮演电视 → 云注册 → app/start → live01/02 → VDN 换取高码流。"""
+
+    def __init__(self):
+        self.timeout = 12.0
+        self.insecure = False
+        self.cache_ttl = 1500.0
+        self.refresh_interval = 0.7
+        self.jitter = 0.25
+        self.session_ttl = 3600.0
+        self.heartbeat_interval = 300.0
+        self.links_per_device = 6
+        self.max_slots = 2
+        self.state_lock = threading.RLock()
+        self.control_lock = threading.RLock()
+        self.limiter = CastLimiter(self.refresh_interval, self.jitter)
+        self.sessions = {}
+        self.standby = None
+        self.cache = {}
+        self.failures = {}
+        self.device_file = ''
+        self.persist = False
+        self.last_error = ''
+        self.last_error_at = 0.0
+        self.generation = 0
+        self.prepared = False
+        self.prepared_at = 0.0
+        self.hb_thread = None
+
+    # ---- 配置 ----
+    def configure(self, opts):
+        self.timeout = float(opts.get('cast_timeout') or 12)
+        self.insecure = bool(opts.get('cast_insecure', False))
+        self.cache_ttl = float(opts.get('cast_cache_ttl') or 1500)
+        self.refresh_interval = float(opts.get('cast_interval') or 0.7)
+        self.jitter = float(opts.get('cast_jitter') or 0.25)
+        self.session_ttl = float(opts.get('cast_session_ttl') or 3600)
+        self.heartbeat_interval = float(opts.get('cast_heartbeat') or 300)
+        self.links_per_device = int(opts.get('cast_links') or 6)
+        self.device_file = str(opts.get('cast_device_json') or '')
+        self.persist = bool(opts.get('cast_persist', False)) and bool(self.device_file)
+        self.limiter = CastLimiter(self.refresh_interval, self.jitter)
+
+    # ---- 小工具 ----
+    def new_client(self):
+        return CastHttp(self.timeout, self.insecure)
+
+    def _slot_for(self, channel):
+        return 0 if channel in TRUE_4K_CHANNELS else 1
+
+    def _request(self, client, method, url, headers, body=None, form=None, raw=None):
+        self.limiter()
+        if method == 'GET':
+            return client.get(url, headers)
+        if form is not None:
+            return client.post_form(url, headers, form)
+        if raw is not None:
+            return client.post_bytes(url, headers, raw)
+        return client.post_json(url, headers, body)
+
+    def _cooldown(self, channel):
+        item = self.failures.get(channel)
+        if not item:
+            return 0.0
+        at, _err, cnt = item
+        wait = 15.0 if cnt <= 1 else (60.0 if cnt == 2 else 120.0)
+        left = wait - (time.time() - at)
+        return left if left > 0 else 0.0
+
+    def _record_failure(self, channel, err):
+        prev = self.failures.get(channel)
+        cnt = (prev[2] + 1) if prev else 1
+        self.failures[channel] = (time.time(), str(err)[:120], cnt)
+        self.last_error = str(err)[:200]
+        self.last_error_at = time.time()
+
+    # ---- 会话 ----
+    def app_start_flow(self, client, p, ident):
+        last = 'app/start failed'
+        for attempt in range(1, 5):
+            if attempt > 1:
+                time.sleep(float(attempt - 1))
+            ts = int(time.time() * 1000)
+            fp, _t, _d = _compute_fingerprint(ident.x_uid, ts)
+            ident.x_fingerprint = fp
+            ident.headers['X-Fingerprint'] = fp
+            body = {'key': 'app_start_d1',
+                    'value': _report_common_value(p, ident.x_uid, CAST_APP_CHANNEL,
+                                                  CAST_VERSION, '', ts)}
+            headers = _fresh_headers(ident.headers, 'application/json', 'application/json', ts)
+            headers['UID'] = ''
+            status, resp, _h = self._request(client, 'POST', CAST_APP_START, headers,
+                                             raw=_compact_json_bytes(body, True))
+            value = _cast_json(status, resp)
+            if 200 <= status < 300 and isinstance(value, dict):
+                data = value.get('data')
+                enc = ''
+                if isinstance(data, dict):
+                    kv = data.get('key', data)
+                    enc = kv if isinstance(kv, str) else ''
+                elif isinstance(data, str):
+                    enc = data
+                if enc:
+                    return _aes_gcm_decrypt_b64(enc, fp[:32])
+            last = 'app/start HTTP %s: %s' % (status, resp[:160].decode('utf-8', 'replace'))
+        raise CastError(last)
+
+    def cloud_registration_flow(self, ident, device_id):
+        body = {'device_name': CAST_DEVICE_NAME, 'device_id': _rsa_encrypt_device_id(device_id)}
+        client = self.new_client()
+        status, resp, _h = self._request(client, 'POST', CAST_CLOUD_GET,
+                                         _fresh_headers(ident.headers, 'application/json',
+                                                        'application/json'), body)
+        value = _cast_json(status, resp)
+        code = _parse_result_code(value)
+        if code == CAST_RESULT_OK:
+            return _extract_guid(value)
+        if code not in (CAST_RESULT_NEEDS_REGISTER, CAST_RESULT_GET_INVALID):
+            return ''
+        last = None
+        guid = ''
+        for _ in range(2):
+            status, resp, _h = self._request(client, 'POST', CAST_CLOUD_REGISTER,
+                                             _fresh_headers(ident.headers, 'application/json',
+                                                            'application/json'), body)
+            value = _cast_json(status, resp)
+            last = _parse_result_code(value)
+            guid = _extract_guid(value)
+            if guid or last != CAST_RESULT_RETRY_LATER:
+                break
+        if guid:
+            return guid
+        if last in (CAST_RESULT_OK, CAST_RESULT_REGISTERED_ELSEWHERE, CAST_RESULT_GET_INVALID):
+            status, resp, _h = self._request(client, 'POST', CAST_CLOUD_GET,
+                                             _fresh_headers(ident.headers, 'application/json',
+                                                            'application/json'), body)
+            return _extract_guid(_cast_json(status, resp))
+        return ''
+
+    def heartbeat_flow(self, client, p, ident, cloud_guid):
+        ts = int(time.time() * 1000)
+        value = _report_common_value(p, ident.x_uid, CAST_APP_CHANNEL, CAST_VERSION, '', ts)
+        value['network_type'] = 'WiFi'
+        value['guid'] = cloud_guid
+        value['other'] = ''
+        status, resp, _h = self._request(client, 'POST', CAST_REPORT_SINGLE,
+                                         _fresh_headers(ident.headers, 'application/json',
+                                                        'application/json'),
+                                         {'key': 'app_heartbeat', 'value': value})
+        if not 200 <= status < 300:
+            raise CastError('heartbeat HTTP %s' % status)
+        code = _parse_result_code(_cast_json(status, resp))
+        return '' if code is None else str(code)
+
+    def bootstrap_session(self, prefer_4k=False, profile_seed=None):
+        tpl = _random_device_template(prefer_4k)
+        if profile_seed:
+            p = _device_profile_from_template(profile_seed, profile_seed.get('android_id')
+                                              or _random_hex(16), profile_seed.get('mac')
+                                              or _random_mac())
+        else:
+            p = _device_profile_from_template(tpl, _random_hex(16), _random_mac())
+        ident = _build_identity(p, CAST_APP_CHANNEL, CAST_VERSION)
+        client = self.new_client()
+        session_key = self.app_start_flow(client, p, ident)
+        cloud_guid = ''
+        try:
+            cloud_guid = self.cloud_registration_flow(ident, ident.x_uid)
+        except Exception as e:
+            _cast_log('cloud register skip: %s' % e)
+        try:
+            self.heartbeat_flow(client, p, ident, cloud_guid)
+        except Exception as e:
+            _cast_log('heartbeat skip: %s' % e)
+        sess = CastSession()
+        sess.profile = p
+        sess.identity = ident
+        sess.client = client
+        sess.session_key = session_key
+        sess.cloud_guid = cloud_guid
+        sess.version = CAST_VERSION
+        sess.screen_param = tpl.get('screen_param', '7680-4320-280')
+        sess.cast_model = tpl.get('cast_model') or p.model
+        sess.created_at = time.time()
+        sess.generation = 0
+        sess.linked_channels = set()
+        sess.last_heartbeat_at = time.time()
+        sess.heartbeat_count = 1
+        sess.last_heartbeat_error = ''
+        self._telemetry(client, p, ident, cloud_guid)
+        _cast_log('session ready model=%s uid=%s cloud=%s'
+                  % (p.model, ident.x_uid[:12], 'yes' if cloud_guid else 'no'))
+        return sess
+
+    def _telemetry(self, client, p, ident, cloud_guid):
+        def run():
+            try:
+                body = {'key': 'app_start_d1',
+                        'value': _report_common_value(p, ident.x_uid, CAST_APP_CHANNEL,
+                                                      CAST_VERSION, CAST_SDK_VERSION,
+                                                      int(time.time() * 1000))}
+                client.post_form(CAST_COLLECT_REPORT, _collect_headers(p),
+                                 [('info', json.dumps(body, separators=(',', ':'),
+                                                      ensure_ascii=False, sort_keys=True))])
+            except Exception:
+                pass
+            try:
+                client.post_bytes(CAST_DICTIONARY, _root_headers(CAST_VERSION), b'')
+            except Exception:
+                pass
+            if cloud_guid:
+                try:
+                    ts = int(time.time() * 1000)
+                    value = _report_common_value(p, ident.x_uid, CAST_APP_CHANNEL,
+                                                 CAST_VERSION, '', ts)
+                    sdk = _infer_sdk_int(p)
+                    system_info = _infer_os_version(p)
+                    if sdk:
+                        system_info = sdk if not system_info else '%s/%s' % (system_info, sdk)
+                    value.update({'version': CAST_VERSION, 'network_status': 'WiFi',
+                                  'device_info': '%s-%s' % (p.brand, p.model),
+                                  'manufacturer': p.manufacturer, 'cpu_info': '',
+                                  'chip_info': p.hardware, 'ram_info': '', 'memory_info': '',
+                                  'system_info': system_info, 'guid': cloud_guid})
+                    client.post_json(CAST_REPORT_SINGLE,
+                                     _fresh_headers(ident.headers, 'application/json',
+                                                    'application/json'),
+                                     {'key': 'app_device_info', 'value': value})
+                except Exception:
+                    pass
+            try:
+                client.post_json(CAST_INDEX,
+                                 _fresh_headers(ident.headers, 'application/json',
+                                                'application/json'),
+                                 {'channel': CAST_APP_CHANNEL, 'source': 'application'})
+            except Exception:
+                pass
+            try:
+                appcommon = _build_vdn_appcommon(CAST_VERSION)
+                client.post_form(CAST_DRM_CONFIG,
+                                 _fresh_headers(ident.headers,
+                                                'application/x-www-form-urlencoded'),
+                                 [('appcommon', appcommon)])
+                client.get('%s?appcommon=%s' % (CAST_VERSION_CONFIG,
+                                                _form_urlencode_value(appcommon)),
+                           _fresh_headers(ident.headers, ''))
+            except Exception:
+                pass
+        threading.Thread(target=run, daemon=True).start()
+
+    def ensure_slot_session(self, slot, force=False):
+        with self.control_lock:
+            with self.state_lock:
+                sess = self.sessions.get(slot)
+            if sess is not None and not force and time.time() - sess.created_at < self.session_ttl \
+                    and sess.session_key:
+                return sess
+            if sess is not None and force:
+                self._rotate_now(slot, 'forced')
+            with self.state_lock:
+                sess = self.sessions.get(slot)
+                if sess is not None and sess.session_key and not force:
+                    return sess
+            new_sess = self.bootstrap_session(prefer_4k=(slot == 0))
+            with self.state_lock:
+                self.generation += 1
+                new_sess.generation = self.generation
+                self.sessions[slot] = new_sess
+            self._start_heartbeat()
+            return new_sess
+
+    def _rotate_now(self, slot, reason):
+        with self.state_lock:
+            old = self.sessions.pop(slot, None)
+            self.generation += 1
+        _cast_log('rotate slot %s (%s)' % (slot, reason))
+        try:
+            new_sess = self.bootstrap_session(prefer_4k=(slot == 0))
+        except Exception as e:
+            with self.state_lock:
+                if old is not None:
+                    self.sessions[slot] = old
+            raise CastError('rotate failed: %s' % e)
+        with self.state_lock:
+            self.generation += 1
+            new_sess.generation = self.generation
+            self.sessions[slot] = new_sess
+        return new_sess
+
+    def _start_heartbeat(self):
+        if self.hb_thread is not None and self.hb_thread.is_alive():
+            return
+        self.hb_thread = threading.Thread(target=self._heartbeat_loop, daemon=True)
+        self.hb_thread.start()
+
+    def _heartbeat_loop(self):
+        while True:
+            time.sleep(max(60.0, self.heartbeat_interval))
+            try:
+                with self.state_lock:
+                    slots = list(self.sessions.keys())
+                for slot in slots:
+                    with self.state_lock:
+                        sess = self.sessions.get(slot)
+                    if sess is None:
+                        continue
+                    if time.time() - sess.created_at > self.session_ttl - 300:
+                        try:
+                            sess = self.ensure_slot_session(slot, force=True)
+                        except Exception as e:
+                            _cast_log('heartbeat rotate fail: %s' % e)
+                            continue
+                    try:
+                        self.heartbeat_flow(sess.client, sess.profile, sess.identity,
+                                            sess.cloud_guid)
+                        sess.last_heartbeat_at = time.time()
+                        sess.heartbeat_count += 1
+                        sess.last_heartbeat_error = ''
+                    except Exception as e:
+                        sess.last_heartbeat_error = str(e)[:120]
+                        _cast_log('heartbeat fail slot %s: %s' % (slot, e))
+            except Exception:
+                pass
+
+    # ---- 频道解析 ----
+    def live_v1_01_flow(self, sess, live_id):
+        body = {'screenParam': sess.screen_param, 'rate': '', 'systemType': 'ios',
+                'model': sess.cast_model, 'id': live_id, 'userId': CAST_LIVE_USER_ID,
+                'clientSign': 'cctvVideo',
+                'deviceId': {'serial': '', 'imei': '', 'android_id': ''}}
+        status, resp, _h = self._request(sess.client, 'POST', CAST_LIVE_01,
+                                         _fresh_headers(sess.identity.headers,
+                                                        'application/json', 'application/json'),
+                                         body)
+        value = _cast_json(status, resp)
+        if not 200 <= status < 300:
+            raise CastError('live/v1/01 HTTP %s: %s'
+                            % (status, resp[:160].decode('utf-8', 'replace')))
+        videos = None
+        if isinstance(value, dict) and isinstance(value.get('data'), dict):
+            videos = value['data'].get('videoList') or value['data'].get('videos')
+        if not isinstance(videos, list):
+            raise CastError('live/v1/01 missing videos')
+        selected, fallback = None, None
+        for item in videos:
+            if not isinstance(item, dict):
+                continue
+            url = item.get('url')
+            if not isinstance(url, str) or not url:
+                continue
+            if fallback is None:
+                fallback = item
+            if item.get('rate') == '36p':
+                selected = item
+                break
+        video = selected if selected is not None else fallback
+        if video is None:
+            raise CastError('live/v1/01 no usable URL')
+        raw_url = video.get('url', '')
+        if raw_url.startswith('http://') or raw_url.startswith('https://'):
+            live_url = raw_url
+        else:
+            live_url = _aes_gcm_decrypt_b64(raw_url, sess.session_key)
+        rate = video.get('rate')
+        rate_name = video.get('rateName')
+        return live_url, (rate if isinstance(rate, str) else ''), \
+            (rate_name if isinstance(rate_name, str) else '')
+
+    def live_v1_02_flow(self, sess):
+        enc_guid = _aes_gcm_encrypt_b64('', sess.session_key)
+        status, resp, _h = self._request(sess.client, 'POST', CAST_LIVE_02,
+                                         _fresh_headers(sess.identity.headers,
+                                                        'application/json', 'application/json'),
+                                         {'guid': enc_guid})
+        value = _cast_json(status, resp)
+        if not 200 <= status < 300:
+            raise CastError('live/v1/02 HTTP %s: %s'
+                            % (status, resp[:160].decode('utf-8', 'replace')))
+        enc = None
+        if isinstance(value, dict):
+            data = value.get('data')
+            if isinstance(data, dict):
+                for key in ('appSecret', 'app_secret'):
+                    v = data.get(key)
+                    if isinstance(v, str):
+                        enc = v
+                        break
+            if enc is None and isinstance(data, str):
+                enc = data
+        if enc is None:
+            raise CastError('live/v1/02 missing appSecret')
+        return _aes_gcm_decrypt_b64(enc, sess.session_key)
+
+    def vdn_getstream_flow(self, sess, live_url, app_secret):
+        app_sign, random_str = _compute_vdn_code(app_secret)
+        headers = _fresh_headers(sess.identity.headers, 'application/x-www-form-urlencoded')
+        headers['APPID'] = CAST_AK
+        headers['APPSIGN'] = app_sign
+        headers['APPRANDOMSTR'] = random_str
+        status, resp, _h = self._request(sess.client, 'POST', CAST_VDN, headers,
+                                         form=[('appcommon', _build_vdn_appcommon(CAST_VERSION)),
+                                               ('url', live_url)])
+        value = _cast_json(status, resp)
+        if not 200 <= status < 300:
+            raise CastError('VDN HTTP %s: %s' % (status, resp[:160].decode('utf-8', 'replace')))
+        if isinstance(value, dict):
+            succeed = value.get('succeed')
+            ok = str(succeed).strip('"') == '1' if succeed is not None else False
+            if ok:
+                url = value.get('url')
+                if isinstance(url, str) and url:
+                    return url, app_sign, random_str
+        raise CastError('VDN did not return final URL')
+
+    def _resolve_once(self, sess, channel, live_id):
+        live_url, rate, rate_name = self.live_v1_01_flow(sess, live_id)
+        app_secret = self.live_v1_02_flow(sess)
+        final_url, app_sign, random_str = self.vdn_getstream_flow(sess, live_url, app_secret)
+        headers = _default_playback_headers(sess.profile.android_id)
+        headers['APPRANDOMSTR'] = random_str
+        headers['APPSIGN'] = app_sign
+        entry = CastEntry()
+        entry.channel = channel
+        entry.live_id = live_id
+        entry.final_url = final_url
+        entry.playback_headers = headers
+        entry.android_id = sess.profile.android_id
+        entry.x_uid = sess.identity.x_uid
+        entry.rate = rate
+        entry.rate_name = rate_name
+        entry.final_host = _url_host(final_url)
+        entry.refreshed_at = time.time()
+        entry.expires_at = entry.refreshed_at + self.cache_ttl
+        entry.session_generation = sess.generation
+        entry.last_error = ''
+        sess.linked_channels.add(channel)
         return entry
+
+    def resolve(self, channel, force=False):
+        """取一个频道的投屏高码流地址；带冷却、SWR 旧值兜底、热备设备重试。"""
+        live_id = CAST_LIVE_IDS.get(channel)
+        if not live_id:
+            raise CastError('channel has no cast id: %s' % channel)
+        now = time.time()
+        with self.state_lock:
+            entry = self.cache.get(channel)
+        if entry is not None and entry.fresh(now) and not force:
+            return entry
+        wait = self._cooldown(channel)
+        if wait > 0 and entry is None:
+            raise CastError('channel cooling down %.0fs (%s)' % (wait, self.last_error))
+        slot = self._slot_for(channel)
+        try:
+            sess = self.ensure_slot_session(slot)
+            limit = self.links_per_device
+            if slot != 0 and limit > 0 and channel not in sess.linked_channels \
+                    and len(sess.linked_channels) >= limit:
+                sess = self._rotate_now(slot, 'quota reached')
+            try:
+                entry = self._resolve_once(sess, channel, live_id)
+            except CastError as err:
+                if self._session_invalid(err):
+                    _cast_log('slot %s hit risk control (%s), rotate & retry' % (slot, err))
+                    sess = self._rotate_now(slot, str(err))
+                    entry = self._resolve_once(sess, channel, live_id)
+                else:
+                    raise
+        except Exception as err:
+            self._record_failure(channel, err)
+            with self.state_lock:
+                stale = self.cache.get(channel)
+            if stale is not None and stale.stale_usable(now):
+                _cast_log('%s serve stale: %s' % (channel, err))
+                return stale
+            if isinstance(err, CastError):
+                raise
+            raise CastError(str(err))
+        with self.state_lock:
+            self.cache[channel] = entry
+            self.failures.pop(channel, None)
+        self.prepared = True
+        self.prepared_at = time.time()
+        return entry
+
+    def resolve_background(self, channel):
+        """后台预热：不抛错，结果进缓存。"""
+        try:
+            self.resolve(channel)
+        except Exception as e:
+            _cast_log('background %s failed: %s' % (channel, e))
+
+    @staticmethod
+    def _session_invalid(err):
+        text = str(err)
+        marks = ('app/start', 'AES-GCM decrypt', 'session_key', 'HTTP 400', 'HTTP 401',
+                 'HTTP 403', 'missing videos', 'no usable URL', 'missing appSecret')
+        return any(m in text for m in marks)
+
+    def prepare(self, channels=None):
+        """后台建会话 + 拉首批频道，给播放器留出准备时间。"""
+        def run():
+            try:
+                self.ensure_slot_session(0)
+                self.ensure_slot_session(1)
+                for ch in (channels or []):
+                    self.resolve_background(ch)
+                self.prepared = True
+                self.prepared_at = time.time()
+                _cast_log('prepared')
+            except Exception as e:
+                _cast_log('prepare failed: %s' % e)
+        threading.Thread(target=run, daemon=True).start()
+
+    def status(self):
+        with self.state_lock:
+            lines = ['prepared=%s sessions=%s cache=%s'
+                     % (self.prepared, sorted(self.sessions.keys()), len(self.cache))]
+            for slot in sorted(self.sessions):
+                s = self.sessions[slot]
+                lines.append('slot %s: model=%s uid=%s cloud=%s links=%d age=%.0fs hb=%s'
+                             % (slot, s.profile.model, s.identity.x_uid[:12],
+                                bool(s.cloud_guid), len(s.linked_channels),
+                                time.time() - s.created_at, s.last_heartbeat_error or 'ok'))
+            for ch in sorted(self.cache):
+                e = self.cache[ch]
+                lines.append('%s: rate=%s (%s) fresh=%s host=%s'
+                             % (ch, e.rate, e.rate_name, e.fresh(time.time()), e.final_host))
+            if self.last_error:
+                lines.append('last_error=%s' % self.last_error)
+        return '\n'.join(lines) + '\n'
+
+
+CAST = CastResolver()
 
 
 # ================================================================ 频道表
 
 CHANNELS = [
-    ('cctv1',    'CCTV-1 综合',      '2024078201', '600001859', 'fhd', 'Live1717729995180256'),
-    ('cctv2',    'CCTV-2 财经',      '2024075401', '600001800', 'fhd', 'Live1718261577870260'),
-    ('cctv3',    'CCTV-3 综艺',      '2024068501', '600001801', 'fhd', 'Live1718261955077261'),
-    ('cctv4',    'CCTV-4 中文国际',  '2029797101', '600001814', 'fhd', 'Live1718276148119264'),
-    ('cctv5',    'CCTV-5 体育',      '2024078401', '600001818', 'fhd', 'Live1719474204987287'),
-    ('cctv5p',   'CCTV-5+ 体育赛事', '2024078001', '600001817', 'fhd', 'Live1719473996025286'),
-    ('cctv6',    'CCTV-6 电影',      '2013693901', '600108442', 'fhd', None),
-    ('cctv7',    'CCTV-7 国防军事',  '2024072001', '600004092', 'fhd', 'Live1718276412224269'),
-    ('cctv8',    'CCTV-8 电视剧',    '2029793001', '600001803', 'fhd', 'Live1718276458899270'),
-    ('cctv9',    'CCTV-9 纪录',      '2024078601', '600004078', 'fhd', 'Live1718276503187272'),
-    ('cctv10',   'CCTV-10 科教',     '2024078701', '600001805', 'fhd', 'Live1718276550002273'),
-    ('cctv11',   'CCTV-11 戏曲',     '2027248701', '600001806', 'fhd', 'Live1718276603690275'),
-    ('cctv12',   'CCTV-12 社会与法', '2027248801', '600001807', 'fhd', 'Live1718276623932276'),
-    ('cctv13',   'CCTV-13 新闻',     '2029797201', '600001811', 'fhd', 'Live1718276575708274'),
-    ('cctv14',   'CCTV-14 少儿',     '2027248901', '600001809', 'fhd', 'Live1718276498748271'),
-    ('cctv15',   'CCTV-15 音乐',     '2027249001', '600001815', 'fhd', 'Live1718276319614267'),
-    ('cctv16',   'CCTV-16 奥林匹克', '2027249101', '600098637', 'fhd', 'Live1718276256572265'),
-    ('cctv17',   'CCTV-17 农业农村', '2027249401', '600001810', 'fhd', 'Live1718276138318263'),
-    ('cctv4k',   'CCTV-4K 超高清',   '2029810301', '600002264', 'fhd', 'Live1767871224782105'),
-    ('cctv8k',   'CCTV-8K 超高清',   '2026774101', '600156816', 'fhd', 'Live1688400593818102'),
-    ('cctv164k', 'CCTV-16 4K',       '2027249301', '600099502', 'fhd', 'Live1704966749996185'),
-    ('cgtn',     'CGTN 英语',        '2024181701', '600014550', 'fhd', 'Live1719392219423280'),
-    ('cgtnfr',   'CGTN 法语',        '2024181801', '600084704', 'fhd', 'Live1719392670442283'),
-    ('cgtnru',   'CGTN 俄语',        '2024181901', '600084758', 'fhd', 'Live1719392779653284'),
-    ('cgtnar',   'CGTN 阿拉伯语',    '2024182001', '600084782', 'fhd', 'Live1719392885692285'),
-    ('cgtnes',   'CGTN 西班牙语',    '2024182101', '600084744', 'fhd', 'Live1719392560433282'),
-    ('cgtndoc',  'CGTN 纪录',        '2024182301', '600084781', 'fhd', 'Live1719392360336281'),
-    ('cctvfyjc', 'CCTV 风云剧场',    '2025637103', '600099658', 'shd', None),
-    ('cctvdyjc', 'CCTV 第一剧场',    '2026874203', '600099655', 'shd', None),
-    ('cctvhjjc', 'CCTV 怀旧剧场',    '2026874303', '600099620', 'shd', None),
-    ('bjws',     '北京卫视',  '2024052703', '600002309', 'fhd', None),
-    ('jsws',     '江苏卫视',  '2024171103', '600002521', 'fhd', None),
-    ('dfws',     '东方卫视',  '2024054503', '600002483', 'fhd', None),
-    ('zjws',     '浙江卫视',  '2024054703', '600002520', 'fhd', None),
-    ('hnws',     '湖南卫视',  '2024054803', '600002475', 'fhd', None),
-    ('hbws',     '湖北卫视',  '2024171203', '600002508', 'fhd', None),
-    ('gdws',     '广东卫视',  '2024060903', '600002485', 'fhd', None),
-    ('gxws',     '广西卫视',  '2024060703', '600002509', 'fhd', None),
-    ('hljws',    '黑龙江卫视','2029797003', '600002498', 'fhd', None),
-    ('hainanws', '海南卫视',  '2024055603', '600002506', 'fhd', None),
-    ('cqws',     '重庆卫视',  '2024061103', '600002531', 'fhd', None),
-    ('szws',     '深圳卫视',  '2024061303', '600002481', 'fhd', None),
-    ('scws',     '四川卫视',  '2024061403', '600002516', 'fhd', None),
-    ('henanws',  '河南卫视',  '2029797303', '600002525', 'fhd', None),
-    ('dnws',     '东南卫视',  '2024061503', '600002484', 'fhd', None),
-    ('gzws',     '贵州卫视',  '2024061603', '600002490', 'fhd', None),
-    ('jxws',     '江西卫视',  '2024061703', '600002503', 'fhd', None),
-    ('lnws',     '辽宁卫视',  '2024171303', '600002505', 'fhd', None),
-    ('ahws',     '安徽卫视',  '2024171403', '600002532', 'fhd', None),
-    ('hebws',    '河北卫视',  '2024171503', '600002493', 'fhd', None),
-    ('sdws',     '山东卫视',  '2029787903', '600002513', 'fhd', None),
-    ('tjws',     '天津卫视',  '2019927003', '600152137', 'fhd', None),
-    ('jlws',     '吉林卫视',  '2025561503', '600190405', 'fhd', None),
-    ('saxws',    '陕西卫视',  '2029795103', '600190400', 'fhd', None),
-    ('nxws',     '宁夏卫视',  '2025608503', '600190737', 'fhd', None),
-    ('nmgws',    '内蒙古卫视','2025561203', '600190401', 'fhd', None),
-    ('ynws',     '云南卫视',  '2025561303', '600190402', 'fhd', None),
-    ('shanxiws', '山西卫视',  '2025560803', '600190407', 'fhd', None),
-    ('qhws',     '青海卫视',  '2025559103', '600190406', 'fhd', None),
-    ('xizangws', '西藏卫视',  '2025558003', '600190403', 'fhd', None),
-    ('xjws',     '新疆卫视',  '2019927403', '600152138', 'fhd', None),
-    ('cetv1',    'CETV-1',    '2022823801', '600171827', 'fhd', None),
-    ('guoxue',   '国学频道',  '2029360403', '600213139', 'fhd', None),
-    ('cctv4kb',  'CCTV-4K 备用', '', '', '', 'Live1704872878572161'),
-    ('cgtnen',   'CGTN 英语备用', '', '', '', 'Live1719392219423280'),
+    ('cctv1', 'CCTV-1 综合', '2024078201', '600001859', 'fhd', 'Live1717729995180256'),
+    ('cctv2', 'CCTV-2 财经', '2024075401', '600001800', 'fhd', 'Live1718261577870260'),
+    ('cctv3', 'CCTV-3 综艺', '2024068501', '600001801', 'fhd', 'Live1718261955077261'),
+    ('cctv4', 'CCTV-4 中文国际', '2029797101', '600001814', 'fhd', 'Live1718276148119264'),
+    ('cctv5', 'CCTV-5 体育', '2024078401', '600001818', 'fhd', 'Live1719474204987287'),
+    ('cctv5p', 'CCTV-5+ 体育赛事', '2024078001', '600001817', 'fhd', 'Live1719473996025286'),
+    ('cctv6', 'CCTV-6 电影', '2013693901', '600108442', 'fhd', None),
+    ('cctv7', 'CCTV-7 国防军事', '2024072001', '600004092', 'fhd', 'Live1718276412224269'),
+    ('cctv8', 'CCTV-8 电视剧', '2029793001', '600001803', 'fhd', 'Live1718276458899270'),
+    ('cctv9', 'CCTV-9 纪录', '2024078601', '600004078', 'fhd', 'Live1718276503187272'),
+    ('cctv10', 'CCTV-10 科教', '2024078701', '600001805', 'fhd', 'Live1718276550002273'),
+    ('cctv11', 'CCTV-11 戏曲', '2027248701', '600001806', 'fhd', 'Live1718276603690275'),
+    ('cctv12', 'CCTV-12 社会与法', '2027248801', '600001807', 'fhd', 'Live1718276623932276'),
+    ('cctv13', 'CCTV-13 新闻', '2029797201', '600001811', 'fhd', 'Live1718276575708274'),
+    ('cctv14', 'CCTV-14 少儿', '2027248901', '600001809', 'fhd', 'Live1718276498748271'),
+    ('cctv15', 'CCTV-15 音乐', '2027249001', '600001815', 'fhd', 'Live1718276319614267'),
+    ('cctv16', 'CCTV-16 奥林匹克', '2027249101', '600098637', 'fhd', 'Live1718276256572265'),
+    ('cctv17', 'CCTV-17 农业农村', '2027249401', '600001810', 'fhd', 'Live1718276138318263'),
+    ('cctv4k', 'CCTV-4K 超高清', '2029810301', '600002264', 'fhd', 'Live1767871224782105'),
+    ('cctv8k', 'CCTV-8K 超高清', '2026774101', '600156816', 'fhd', 'Live1688400593818102'),
+    ('cctv164k', 'CCTV-16 4K', '2027249301', '600099502', 'fhd', 'Live1704966749996185'),
+    ('cgtn', 'CGTN 英语', '2024181701', '600014550', 'fhd', 'Live1719392219423280'),
+    ('cgtnfr', 'CGTN 法语', '2024181801', '600084704', 'fhd', 'Live1719392670442283'),
+    ('cgtnru', 'CGTN 俄语', '2024181901', '600084758', 'fhd', 'Live1719392779653284'),
+    ('cgtnar', 'CGTN 阿拉伯语', '2024182001', '600084782', 'fhd', 'Live1719392885692285'),
+    ('cgtnes', 'CGTN 西班牙语', '2024182101', '600084744', 'fhd', 'Live1719392560433282'),
+    ('cgtndoc', 'CGTN 纪录', '2024182301', '600084781', 'fhd', 'Live1719392360336281'),
+    ('cctvfyjc', 'CCTV 风云剧场', '2025637103', '600099658', 'shd', None),
+    ('cctvdyjc', 'CCTV 第一剧场', '2026874203', '600099655', 'shd', None),
+    ('cctvhjjc', 'CCTV 怀旧剧场', '2026874303', '600099620', 'shd', None),
+    ('bjws', '北京卫视', '2024052703', '600002309', 'fhd', None),
+    ('jsws', '江苏卫视', '2024171103', '600002521', 'fhd', None),
+    ('dfws', '东方卫视', '2024054503', '600002483', 'fhd', None),
+    ('zjws', '浙江卫视', '2024054703', '600002520', 'fhd', None),
+    ('hnws', '湖南卫视', '2024054803', '600002475', 'fhd', None),
+    ('hbws', '湖北卫视', '2024171203', '600002508', 'fhd', None),
+    ('gdws', '广东卫视', '2024060903', '600002485', 'fhd', None),
+    ('gxws', '广西卫视', '2024060703', '600002509', 'fhd', None),
+    ('hljws', '黑龙江卫视', '2029797003', '600002498', 'fhd', None),
+    ('hainanws', '海南卫视', '2024055603', '600002506', 'fhd', None),
+    ('cqws', '重庆卫视', '2024061103', '600002531', 'fhd', None),
+    ('szws', '深圳卫视', '2024061303', '600002481', 'fhd', None),
+    ('scws', '四川卫视', '2024061403', '600002516', 'fhd', None),
+    ('henanws', '河南卫视', '2029797303', '600002525', 'fhd', None),
+    ('dnws', '东南卫视', '2024061503', '600002484', 'fhd', None),
+    ('gzws', '贵州卫视', '2024061603', '600002490', 'fhd', None),
+    ('jxws', '江西卫视', '2024061703', '600002503', 'fhd', None),
+    ('lnws', '辽宁卫视', '2024171303', '600002505', 'fhd', None),
+    ('ahws', '安徽卫视', '2024171403', '600002532', 'fhd', None),
+    ('hebws', '河北卫视', '2024171503', '600002493', 'fhd', None),
+    ('sdws', '山东卫视', '2029787903', '600002513', 'fhd', None),
+    ('tjws', '天津卫视', '2019927003', '600152137', 'fhd', None),
+    ('jlws', '吉林卫视', '2025561503', '600190405', 'fhd', None),
+    ('saxws', '陕西卫视', '2029795103', '600190400', 'fhd', None),
+    ('nxws', '宁夏卫视', '2025608503', '600190737', 'fhd', None),
+    ('nmgws', '内蒙古卫视', '2025561203', '600190401', 'fhd', None),
+    ('ynws', '云南卫视', '2025561303', '600190402', 'fhd', None),
+    ('shanxiws', '山西卫视', '2025560803', '600190407', 'fhd', None),
+    ('qhws', '青海卫视', '2025559103', '600190406', 'fhd', None),
+    ('xizangws', '西藏卫视', '2025558003', '600190403', 'fhd', None),
+    ('xjws', '新疆卫视', '2019927403', '600152138', 'fhd', None),
+    ('cetv1', 'CETV-1', '2022823801', '600171827', 'fhd', None),
+    ('guoxue', '国学频道', '2029360403', '600213139', 'fhd', None),
 ]
 
-CHANNEL_MAP = {c[0]: {'slug': c[0], 'name': c[1], 'sid': c[2], 'pid': c[3], 'defn': c[4], 'ysptp': c[5]} for c in CHANNELS}
+CHANNEL_MAP = {c[0]: {'slug': c[0], 'name': c[1], 'sid': c[2], 'pid': c[3], 'defn': c[4], 'cast': c[5]} for c in CHANNELS}
+
+# 投屏（设备模拟）频道 -> 央视频 live_id
+CAST_LIVE_IDS = {c[0]: c[5] for c in CHANNELS if c[5]}
+
+CAST_SLUG_SUFFIX = '_cast'
+
+
+def _base_slug(slug):
+    return slug[:-len(CAST_SLUG_SUFFIX)] if slug.endswith(CAST_SLUG_SUFFIX) else slug
+
+
+def _cast_slug(slug):
+    return slug + CAST_SLUG_SUFFIX
+
+
+def _has_cast(slug):
+    return bool(CHANNEL_MAP.get(_base_slug(slug), {}).get('cast'))
 
 FORCE_BK = {'cctv11', 'cctv12', 'cctv14', 'cctv15', 'cctv16', 'cctv164k',
             'cctv17', 'cctv4k', 'cctvfyjc', 'cctvdyjc', 'cctvhjjc'}
@@ -850,13 +1756,6 @@ TRUE_4K_CHANNELS = {'cctv4k', 'cctv8k', 'cctv164k'}
 def _has_native(slug):
     info = CHANNEL_MAP.get(slug, {})
     return bool(info.get('sid')) and bool(info.get('pid'))
-
-
-def _has_ysptp(slug):
-    return bool(CHANNEL_MAP.get(slug, {}).get('ysptp'))
-
-
-YSPTP_SLUG_SUFFIX = '_ys'
 
 
 # ================================================================ 台标
@@ -886,8 +1785,8 @@ _LOGO_PLACEHOLDER = base64.b64decode(
 
 _LOGO_OVERRIDE = {
     'cctv5p': 'CCTV5+.png', 'cctv4k': 'CCTV4K.png', 'cctv8k': 'CCTV8K.png',
-    'cctv164k': 'CCTV16.png', 'cctv4kb': 'CCTV4K.png',
-    'cgtn': 'CGTN.png', 'cgtnen': 'CGTN.png',
+    'cctv164k': 'CCTV16.png',
+    'cgtn': 'CGTN.png',
     'cgtnfr': 'CGTN法语.png', 'cgtnru': 'CGTN俄语.png',
     'cgtnar': 'CGTN阿语.png', 'cgtnes': 'CGTN西语.png', 'cgtndoc': 'CGTN纪录.png',
     'cctvfyjc': '风云剧场.png', 'cctvdyjc': '第一剧场.png', 'cctvhjjc': '怀旧剧场.png',
@@ -908,11 +1807,9 @@ def _probe_logo_source():
     try:
         for base in LOGO_MIRRORS:
             try:
-                req = urllib.request.Request(base + LOGO_PROBE_FILE,
-                                             headers={'User-Agent': UA, 'Referer': 'https://live.cctv.cn/'})
-                with urllib.request.urlopen(req, timeout=LOGO_TIMEOUT) as r:
-                    head = r.read(16)
-                if head[:4] == b'\x89PNG':
+                st, head, _ = _http('GET', base + LOGO_PROBE_FILE,
+                                    {'User-Agent': UA, 'Referer': 'https://live.cctv.cn/'}, None, LOGO_TIMEOUT)
+                if st >= 200 and st < 300 and head[:4] == b'\x89PNG':
                     _LOGO_BASE = base; return
             except Exception: continue
         _LOGO_BASE = ''
@@ -929,20 +1826,14 @@ def _ensure_logo_source(wait=3.0):
     return _LOGO_BASE
 
 
-def _local_logo_url(slug):
-    return 'http://127.0.0.1:%d/logo/%s.png' % (_LOCAL_PORT, slug) if _LOCAL_PORT else ''
-
-
 def _logo_url(slug, name=''):
+    # 台标只给 CDN 直连地址；拿不到就返回空，由 Spider._logo 决定要不要走代理兜底
     _ensure_logo_source(wait=0)
-    if not _LOGO_DONE.is_set():
-        return _local_logo_url(slug)
     fname = _logo_file(slug, name)
     base = _LOGO_BASE
-    direct = (base + urllib.parse.quote(fname)) if (base and fname) else ''
-    if LOGO_MODE == 'direct': return direct or _local_logo_url(slug)
-    if LOGO_MODE == 'local': return _local_logo_url(slug) or direct
-    return direct or _local_logo_url(slug)
+    if not (base and fname):
+        return ''
+    return base + urllib.parse.quote(fname)
 
 
 def _fetch_logo_bytes(slug, name):
@@ -952,11 +1843,9 @@ def _fetch_logo_bytes(slug, name):
         q = urllib.parse.quote(fname)
         for base in bases:
             try:
-                req = urllib.request.Request(base + q,
-                                             headers={'User-Agent': UA, 'Referer': 'https://live.cctv.cn/'})
-                with urllib.request.urlopen(req, timeout=LOGO_TIMEOUT) as r:
-                    data = r.read()
-                if data[:4] == b'\x89PNG': return data
+                st, data, _ = _http('GET', base + q,
+                                    {'User-Agent': UA, 'Referer': 'https://live.cctv.cn/'}, None, LOGO_TIMEOUT)
+                if st >= 200 and st < 300 and data[:4] == b'\x89PNG': return data
             except Exception: continue
     return _LOGO_PLACEHOLDER
 
@@ -964,12 +1853,12 @@ def _fetch_logo_bytes(slug, name):
 # ================================================================ 活流状态
 
 class _ChannelState:
-    def __init__(self, slug, name, sid, pid, defn, ysptp_live, mode):
+    def __init__(self, slug, name, sid, pid, defn, mode):
         self.slug = slug; self.name = name
         self.sid = sid; self.pid = pid; self.defn = defn
-        self.ysptp_live = ysptp_live
         self.lock = threading.Lock()
         self.segments = {}; self.order = deque(); self.seq = 0
+        self.headers = {'User-Agent': UA}
         self.last_access = 0.0; self.thread = None
         self.last_error = ''
         self.mode = mode
@@ -979,13 +1868,13 @@ class _ChannelState:
 CHANNEL_STATE = {}
 
 for c in CHANNELS:
-    slug, name, sid, pid, defn, ys = c[0], c[1], c[2], c[3], c[4], c[5]
+    slug, name, sid, pid, defn, live_id = c[0], c[1], c[2], c[3], c[4], c[5]
     if sid and pid:
         native_mode = 'bk' if slug in FORCE_BK else 'jce'
-        CHANNEL_STATE[slug] = _ChannelState(slug, name, sid, pid, defn, None, native_mode)
-    if ys:
-        ys_slug = slug + YSPTP_SLUG_SUFFIX
-        CHANNEL_STATE[ys_slug] = _ChannelState(ys_slug, name + ' (YSPTP)', '', '', '', ys, 'ysptp')
+        CHANNEL_STATE[slug] = _ChannelState(slug, name, sid, pid, defn, native_mode)
+    if live_id:
+        CHANNEL_STATE[slug + CAST_SLUG_SUFFIX] = _ChannelState(
+            slug + CAST_SLUG_SUFFIX, name, '', '', defn, 'cast')
 
 
 def _seg_key(url, pdt):
@@ -1025,11 +1914,13 @@ def _parse_m3u8(text, base_url):
 
 
 def _jce_refresh(ch):
+    ch.headers = {'User-Agent': UA}
     now = int(time.time())
     m3u8_url = jce_timeshift_url(ch.pid, ch.sid, now - WINDOW, now, ch.defn)
-    req = urllib.request.Request(m3u8_url, headers={'User-Agent': UA})
-    with urllib.request.urlopen(req, timeout=20) as r:
-        text = r.read().decode('utf-8', 'replace')
+    st, body, _ = _http('GET', m3u8_url, {'User-Agent': UA}, None, HTTP_TIMEOUT)
+    if st < 200 or st >= 300:
+        raise RuntimeError('jce playlist HTTP %d' % st)
+    text = body.decode('utf-8', 'replace')
     segs = _parse_m3u8(text, m3u8_url)
     if not segs: raise RuntimeError('empty playlist')
     _append_segments(ch, segs)
@@ -1037,15 +1928,17 @@ def _jce_refresh(ch):
 
 
 def _bk_refresh(ch):
+    ch.headers = {'User-Agent': UA, 'Referer': 'https://live.cctv.cn/'}
     urls = bk_playurls(ch.sid, ch.pid, ch.defn)
     last_err = ''
     for u in urls:
         try:
-            req = urllib.request.Request(u, headers={
-                'User-Agent': UA, 'Referer': 'https://live.cctv.cn/',
-                'Accept': 'application/vnd.apple.mpegurl,application/json,*/*'})
-            with urllib.request.urlopen(req, timeout=20) as r:
-                text = r.read().decode('utf-8', 'replace'); final = r.geturl()
+            hb = {'User-Agent': UA, 'Referer': 'https://live.cctv.cn/',
+                  'Accept': 'application/vnd.apple.mpegurl,application/json,*/*'}
+            st, body, _ = _http('GET', u, hb, None, HTTP_TIMEOUT)
+            if st < 200 or st >= 300:
+                raise RuntimeError('bk playlist HTTP %d' % st)
+            text = body.decode('utf-8', 'replace'); final = u
             lines = text.splitlines()
             for i, ln in enumerate(lines):
                 if ln.strip().startswith('#EXT-X-STREAM-INF'):
@@ -1053,9 +1946,10 @@ def _bk_refresh(ch):
                         s = lines[j].strip()
                         if s and not s.startswith('#'):
                             sub = urllib.parse.urljoin(final, s)
-                            req2 = urllib.request.Request(sub, headers={'User-Agent': UA})
-                            with urllib.request.urlopen(req2, timeout=20) as r2:
-                                text = r2.read().decode('utf-8', 'replace'); final = r2.geturl()
+                            st2, body2, _ = _http('GET', sub, {'User-Agent': UA}, None, HTTP_TIMEOUT)
+                            if st2 < 200 or st2 >= 300:
+                                raise RuntimeError('bk variant HTTP %d' % st2)
+                            text = body2.decode('utf-8', 'replace'); final = sub
                             break
                     break
             segs = _parse_m3u8(text, final)
@@ -1065,29 +1959,6 @@ def _bk_refresh(ch):
         except Exception as e:
             last_err = '%s: %s' % (type(e).__name__, e); continue
     raise RuntimeError(last_err or 'bk playlist failed')
-
-
-def _ysptp_refresh(ch):
-    e = ysptp_resolve(ch.ysptp_live, ch.slug)
-    req = urllib.request.Request(e['final_url'], headers=e['headers'])
-    with urllib.request.urlopen(req, timeout=20) as r:
-        text = r.read().decode('utf-8', 'replace'); final = r.geturl()
-    lines = text.splitlines()
-    for i, ln in enumerate(lines):
-        if ln.strip().startswith('#EXT-X-STREAM-INF'):
-            for j in range(i + 1, len(lines)):
-                s = lines[j].strip()
-                if s and not s.startswith('#'):
-                    sub = urllib.parse.urljoin(final, s)
-                    req2 = urllib.request.Request(sub, headers=e['headers'])
-                    with urllib.request.urlopen(req2, timeout=20) as r2:
-                        text = r2.read().decode('utf-8', 'replace'); final = r2.geturl()
-                    break
-            break
-    segs = _parse_m3u8(text, final)
-    if not segs: raise RuntimeError('ysptp empty playlist')
-    _append_segments(ch, segs)
-    return True
 
 
 def _refresh_native(ch):
@@ -1104,13 +1975,49 @@ def _refresh_native(ch):
         return _bk_refresh(ch)
 
 
+def _cast_fetch(url, headers):
+    """投屏流走自带 urllib 客户端：签名头必须原样带出去，容器 fetch 会丢。"""
+    status, body, _ = _cast_client().get(url, headers)
+    if status < 200 or status >= 300:
+        raise RuntimeError('cast HTTP %d' % status)
+    return body.decode('utf-8', 'replace')
+
+
+def _pick_variant(text, final, headers):
+    """m3u8 是主列表时，挑第一条子流再拉一次。"""
+    lines = text.splitlines()
+    for i, ln in enumerate(lines):
+        if ln.strip().startswith('#EXT-X-STREAM-INF'):
+            for j in range(i + 1, len(lines)):
+                s = lines[j].strip()
+                if s and not s.startswith('#'):
+                    sub = urllib.parse.urljoin(final, s)
+                    return _cast_fetch(sub, headers), sub
+            break
+    return text, final
+
+
+def _cast_refresh(ch):
+    """源2：设备投屏（模拟电视接收端，签名换高码流）。"""
+    base = _base_slug(ch.slug)
+    entry = CAST.resolve(base)
+    headers = dict(entry.playback_headers or {})
+    if not headers:
+        headers = _default_playback_headers(entry.android_id)
+    ch.headers = headers
+    text = _cast_fetch(entry.final_url, headers)
+    text, final = _pick_variant(text, entry.final_url, headers)
+    segs = _parse_m3u8(text, final)
+    if not segs:
+        raise RuntimeError('cast empty playlist')
+    _append_segments(ch, segs)
+    return True
+
+
 def _refresh_once(ch):
     t0 = time.time()
     try:
-        if ch.mode == 'ysptp':
-            ok = _ysptp_refresh(ch)
-        else:
-            ok = _refresh_native(ch)
+        ok = _cast_refresh(ch) if ch.mode == 'cast' else _refresh_native(ch)
         _log('refresh %s: ok=%s %.2fs segs=%d'
              % (ch.slug, ok, time.time() - t0, len(ch.order)))
         return ok
@@ -1146,354 +2053,776 @@ def _ensure_channel(ch):
         with ch.lock: ch._starting = False
 
 
-# ================================================================ 本地 HTTP 服务
+class _Resp(object):
 
-_LOCAL_PORT = None
-_LOCAL_LOCK = threading.Lock()
+    __slots__ = ("status", "content", "headers")
+
+    def __init__(self, status, content, headers):
+        self.status = status
+        self.content = content
+        self.headers = headers
 
 
-class _LocalHandler(BaseHTTPRequestHandler):
-    protocol_version = 'HTTP/1.1'
-    server_version = 'ysp-live-spider'
-
-    def log_message(self, fmt, *args): pass
-
-    def _send(self, code, body, ctype='text/plain; charset=utf-8', extra=None, cache=False):
-        data = body.encode('utf-8') if isinstance(body, str) else body
+def _gunzip(content, headers):
+    if not content:
+        return content
+    encoding = ""
+    for key, value in (headers or {}).items():
+        if str(key).lower() == "content-encoding":
+            encoding = str(value).lower()
+    if content[:2] == b"\x1f\x8b" or "gzip" in encoding:
         try:
-            self.send_response(code)
-            self.send_header('Content-Type', ctype)
-            self.send_header('Content-Length', str(len(data)))
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.send_header('Cache-Control', 'public, max-age=86400' if cache else 'no-cache, no-store')
-            if extra:
-                for k, v in extra.items(): self.send_header(k, v)
-            self.end_headers()
-            self.wfile.write(data)
-        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError): pass
+            return gzip.decompress(content)
+        except (OSError, ValueError, EOFError):
+            return content
+    return content
 
-    def do_HEAD(self):
-        path = urllib.parse.urlparse(self.path).path
-        for pat, ct in [(r'^/[\w]+\.m3u8$', 'application/vnd.apple.mpegurl'),
-                        (r'^/logo/[\w]+\.png$', 'image/png')]:
-            if re.match(pat, path):
-                self.send_response(200); self.send_header('Content-Type', ct); self.end_headers(); return
-        self.send_response(404); self.end_headers()
 
-    def do_GET(self):
-        path = urllib.parse.urlparse(self.path).path
-        if path == '/health':
-            self._send(200, 'ok\n'); return
-        if path == '/diag':
-            lines = []
-            for slug, ch in CHANNEL_STATE.items():
-                with ch.lock: n = len(ch.order)
-                lines.append('%s mode=%s segs=%d err=%s' % (slug, ch.mode, n, ch.last_error))
-            lines.append('logo_source=%s' % (_LOGO_BASE or '(none)'))
-            lines.append('aes_backend=%s' % (_AES_BACKEND or 'unknown'))
-            self._send(200, '\n'.join(lines) + '\n'); return
+class _Net(object):
+    """容器无关的网络层。
 
-        m = re.match(r'^/logo/([\w]+)\.png$', path)
-        if m: self._serve_logo(m.group(1)); return
-        m = re.match(r'^/([\w]+)\.m3u8$', path)
-        if m: self._serve_m3u8(m.group(1)); return
-        m = re.match(r'^/chunk/([\w]+)/(\d+)\.ts$', path)
-        if m: self._serve_chunk(m.group(1), int(m.group(2))); return
-        self._send(404, 'not found\n')
+    GET 优先借容器的 self.fetch()，POST 和一切失败情形回落到 urllib；
+    内置 Python 常缺 CA 证书，SSL 校验失败时自动降级重试一次。
+    """
 
-    def _serve_logo(self, slug):
-        base = slug[:-len(YSPTP_SLUG_SUFFIX)] if slug.endswith(YSPTP_SLUG_SUFFIX) else slug
-        info = CHANNEL_MAP.get(base)
-        name = info['name'] if info else ''
-        with _LOGO_CACHE_LOCK: data = _LOGO_CACHE.get(base)
-        if data is None:
-            data = _fetch_logo_bytes(base, name)
-            with _LOGO_CACHE_LOCK: _LOGO_CACHE[base] = data
-        self._send(200, data, 'image/png', cache=True)
+    def __init__(self):
+        self.spider = None
+        self.fetch_broken = False
 
-    def _serve_m3u8(self, slug):
-        ch = CHANNEL_STATE.get(slug)
-        if not ch:
-            self._send(404, 'unknown\n'); return
-        _ensure_channel(ch)
-        for _ in range(60):
-            with ch.lock:
-                if ch.order: break
-            time.sleep(0.2)
-        with ch.lock:
-            keys = list(ch.order)
-            segs = [ch.segments[k] for k in keys if k in ch.segments]
-            window = segs[-PLAYLIST_WINDOW:] if segs else []
-        if not window:
-            self._send(503, 'no data: %s\n' % (ch.last_error or 'fetching')); return
-        ch.last_access = time.time()
-        port = _LOCAL_PORT
-        target = max(6, int(max(s[1] for s in window) + 0.5))
-        out = [
-            '#EXTM3U', '#EXT-X-VERSION:3',
-            '#EXT-X-TARGETDURATION:%d' % target,
-            '#EXT-X-MEDIA-SEQUENCE:%d' % window[0][0],
-            '#EXT-X-DISCONTINUITY-SEQUENCE:0',
-            '#EXT-X-START:TIME-OFFSET=-15.0',
-        ]
-        for seq, dur, pdt, _url in window:
-            if pdt: out.append('#EXT-X-PROGRAM-DATE-TIME:' + pdt)
-            out.append('#EXTINF:%.3f,' % dur)
-            out.append('http://127.0.0.1:%d/chunk/%s/%d.ts' % (port, slug, seq))
-        self._send(200, '\n'.join(out) + '\n', 'application/vnd.apple.mpegurl')
+    def bind(self, spider):
+        self.spider = spider
 
-    def _serve_chunk(self, slug, seq):
-        ch = CHANNEL_STATE.get(slug)
-        if not ch:
-            self._send(404, 'unknown\n'); return
-        ch.last_access = time.time()
-        with ch.lock:
-            url = None
-            for k in ch.order:
-                s = ch.segments.get(k)
-                if s and s[0] == seq:
-                    url = s[3]; break
-        if not url:
-            self._send(404, 'chunk expired\n'); return
-
+    # ---- 容器 fetch ----
+    def _via_fetch(self, url, headers, timeout):
+        if self.spider is None or self.fetch_broken or DIRECT:
+            return None
+        fn = getattr(self.spider, "fetch", None)
+        if not callable(fn):
+            return None
         try:
-            req = urllib.request.Request(url, headers={
-                'User-Agent': UA, 'Referer': 'https://live.cctv.cn/'})
-            with urllib.request.urlopen(req, timeout=20) as r:
-                self.send_response(200)
-                self.send_header('Content-Type', 'video/mp2t')
-                self.send_header('Transfer-Encoding', 'chunked')
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.send_header('Cache-Control', 'no-cache, no-store')
-                self.end_headers()
-                while True:
-                    buf = r.read(64 * 1024)
-                    if not buf: break
-                    self.wfile.write(('%x\r\n' % len(buf)).encode('ascii'))
-                    self.wfile.write(buf)
-                    self.wfile.write(b'\r\n')
-                self.wfile.write(b'0\r\n\r\n')
-        except urllib.error.HTTPError as e:
-            try: self._send(e.code, 'chunk HTTP %d\n' % e.code)
-            except Exception: pass
-        except Exception as e:
-            try: self._send(502, 'chunk error: %s\n' % e)
-            except Exception: pass
-
-
-def _ensure_local_server():
-    global _LOCAL_PORT
-    with _LOCAL_LOCK:
-        if _LOCAL_PORT is not None: return _LOCAL_PORT
-        ports = list(range(LOCAL_PORT_PREFERRED, LOCAL_PORT_PREFERRED + LOCAL_PORT_RANGE)) + [0]
-        last_err = None
-        for port in ports:
+            response = fn(url, headers=headers, timeout=timeout)
+        except TypeError:
             try:
-                srv = ThreadingHTTPServer(('127.0.0.1', port), _LocalHandler)
-                srv.daemon_threads = True
-                _LOCAL_PORT = srv.server_address[1]
-                threading.Thread(target=srv.serve_forever, daemon=True).start()
-                try: _detect_aes_backend()
-                except Exception: pass
-                return _LOCAL_PORT
-            except OSError as e:
-                last_err = e; continue
-        raise RuntimeError('无法绑定端口: %s' % last_err)
+                response = fn(url, headers=headers)
+            except Exception:
+                return None
+        except Exception:
+            return None
+        if response is None:
+            return None
+        if isinstance(response, str):
+            return _Resp(200, response.encode("utf-8"), {})
+        if isinstance(response, dict):
+            body = response.get("content")
+            if body is None:
+                body = response.get("body")
+            if body is None:
+                body = response.get("text") or ""
+            if isinstance(body, str):
+                body = body.encode("utf-8")
+            return _Resp(int(response.get("code") or response.get("status") or 200),
+                         bytes(body), response.get("headers") or {})
+        status = getattr(response, "status_code", None)
+        if status is None:
+            status = getattr(response, "status", None)
+        if status is None:
+            self.fetch_broken = True
+            return None
+        content = getattr(response, "content", None)
+        if content is None:
+            content = (getattr(response, "text", "") or "").encode("utf-8")
+        raw = getattr(response, "headers", None) or {}
+        try:
+            raw = dict(raw)
+        except (TypeError, ValueError):
+            raw = {}
+        return _Resp(int(status), bytes(content), raw)
+
+    # ---- urllib ----
+    def _via_urllib(self, method, url, headers, body, timeout, unverified):
+        request = urllib.request.Request(url, data=body, headers=headers or {}, method=method)
+        context = ssl.create_default_context()
+        if unverified:
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+        with urllib.request.urlopen(request, timeout=timeout, context=context) as stream:
+            return _Resp(stream.status, stream.read(), dict(stream.headers))
+
+    @staticmethod
+    def _http_error(error):
+        body = b""
+        try:
+            body = error.read()
+        except Exception:
+            pass
+        headers = {}
+        try:
+            headers = dict(error.headers or {})
+        except (TypeError, ValueError):
+            headers = {}
+        return error.code, _gunzip(body, headers), headers
+
+    def request(self, method, url, headers=None, body=None, timeout=15):
+        headers = dict(headers or {})
+        headers.setdefault("User-Agent", UA)
+        if "Accept-Encoding" not in headers:
+            headers["Accept-Encoding"] = "identity"
+        if method == "GET" and body is None:
+            try:
+                response = self._via_fetch(url, headers, timeout)
+            except Exception:
+                response = None
+            if response is not None:
+                return response.status, _gunzip(response.content, response.headers), response.headers
+        try:
+            response = self._via_urllib(method, url, headers, body, timeout, False)
+            return response.status, _gunzip(response.content, response.headers), response.headers
+        except urllib.error.HTTPError as error:
+            return self._http_error(error)
+        except ssl.SSLError:
+            try:
+                response = self._via_urllib(method, url, headers, body, timeout, True)
+                return response.status, _gunzip(response.content, response.headers), response.headers
+            except urllib.error.HTTPError as error:
+                return self._http_error(error)
+            except Exception as error:
+                return 599, ("%s(SSL降级): %s" % (type(error).__name__, error)).encode("utf-8"), {}
+        except Exception as error:
+            return 599, ("%s: %s" % (type(error).__name__, error)).encode("utf-8"), {}
+
+
+DIRECT = False
+_NET = _Net()
+
+
+def _http(method, url, headers=None, body=None, timeout=15):
+    """统一 HTTP 出口，返回 (status, bytes, headers)。"""
+    return _NET.request(method, url, headers, body, timeout)
+
+
+def _one(value):
+    """localProxy 的参数值可能是 str 或 list，统一取第一个。"""
+    if isinstance(value, (list, tuple)):
+        value = value[0] if value else ""
+    return "" if value is None else str(value)
+
+
+def _safe(value):
+    """M3U 属性里不能出现双引号。"""
+    return str(value).replace('"', "'")
+
+
+# ================================================================ 分类 / EPG
+
+GROUP_NAMES = {
+    "cctv": "央视频道", "satellite": "卫视频道", "cgtn": "CGTN",
+    "4k": "4K超清", "premium": "付费剧场", "other": "其他",
+}
+
+EPG_XML_URL = "https://epg.112114.xyz/pp.xml"
+
+# tvg-id 默认按主流 XMLTV 源（fanmingming / 112114）的习惯命名
+EPG_IDS = {
+    "cctv5p": "CCTV5+", "cctv4k": "CCTV4K", "cctv8k": "CCTV8K",
+    "cctv164k": "CCTV16",
+    "cgtn": "CGTN",
+    "cgtnfr": "CGTN法语", "cgtnru": "CGTN俄语",
+    "cgtnar": "CGTN阿语", "cgtnes": "CGTN西语", "cgtndoc": "CGTN纪录",
+    "cctvfyjc": "风云剧场", "cctvdyjc": "第一剧场", "cctvhjjc": "怀旧剧场",
+    "cetv1": "CETV1", "guoxue": "国学",
+}
+
+
+def _epg_id(slug, name=""):
+    if slug in EPG_IDS:
+        return EPG_IDS[slug]
+    matched = re.match(r"^cctv(\d+)$", slug)
+    if matched:
+        return "CCTV%s" % matched.group(1)
+    return name or slug
+
+
+def _classify(slug):
+    cats = []
+    if (re.match(r"^cctv\d+$", slug) or slug == "cctv5p") and slug not in TRUE_4K_CHANNELS:
+        cats.append("cctv")
+    if slug in TRUE_4K_CHANNELS:
+        cats.append("4k")
+    if slug in ("cctvfyjc", "cctvdyjc", "cctvhjjc"):
+        cats.append("premium")
+    if slug.endswith("ws") or slug == "cetv1":
+        cats.append("satellite")
+    if slug.startswith("cgtn"):
+        cats.append("cgtn")
+    if slug == "guoxue":
+        cats.append("other")
+    return cats
+
+
+def _group_name(slug):
+    cats = _classify(slug)
+    return GROUP_NAMES.get(cats[0], "其他") if cats else "其他"
+
+
+CAST_GROUP_NAME = '央视高码'
+
+
+def _entries(tid='all'):
+    """点播列表与直播 M3U 的唯一频道来源，两边都从这里取，保证一致。
+
+    返回 [{slug, name, group, epg, cast}]；cast 条目的 epg 指向原生 slug，
+    这样投屏线路和原线路在节目单里是同一个台。
+    """
+    out = []
+    for row in CHANNELS:
+        slug, name, live_id = row[0], row[1], row[5]
+        if tid == 'cast':
+            if live_id:
+                out.append({'slug': _cast_slug(slug), 'name': name,
+                            'group': CAST_GROUP_NAME, 'epg': slug, 'cast': True})
+            continue
+        if tid in ('', 'all') or tid in _classify(slug):
+            out.append({'slug': slug, 'name': name,
+                        'group': _group_name(slug), 'epg': '', 'cast': False})
+    return out
+
+
+def _live_entries(include_cast=True):
+    """直播 M3U 用的总表 = 点播「全部频道」+ 点播「央视高码」分类。"""
+    out = list(_entries('all'))
+    if include_cast:
+        out += _entries('cast')
+    return out
+
+
+def _upstream_url(ch):
+    """拿到官方可直接播放的 m3u8 地址（不改切片、不经过代理）。
+
+    bk 优先取回源列表第一条，取不到再试 JCE；两个都失败返回空，由调用方退回代理滚动缓冲。
+    投屏源只有不需要签名头的节点才能 302，否则播放器直连会丢头，退回代理。
+    """
+    if ch.mode == 'cast':
+        try:
+            entry = CAST.resolve(_base_slug(ch.slug))
+        except Exception as error:
+            _log('%s cast upstream failed: %s' % (ch.slug, error))
+            return ''
+        if not entry.final_url:
+            return ''
+        if _needs_signed_headers(entry.final_host or _url_host(entry.final_url)):
+            return ''
+        return entry.final_url
+    if not (ch.sid and ch.pid):
+        return ''
+    now = int(time.time())
+    for mode in (('bk', 'jce') if ch.mode == 'bk' else ('jce', 'bk')):
+        try:
+            if mode == 'bk':
+                urls = bk_playurls(ch.sid, ch.pid, ch.defn)
+                for u in urls:
+                    if u:
+                        return u
+            else:
+                return jce_timeshift_url(ch.pid, ch.sid, now - WINDOW, now, ch.defn)
+        except Exception as error:
+            _log('%s upstream %s failed: %s' % (ch.slug, mode, error))
+    return ''
+
+
+class _TsCache(object):
+    """切片 LRU 缓存：代理被反复拖同一个 ts 时省一次回源。"""
+
+    def __init__(self, max_mb=0):
+        self.max_bytes = int(max(0.0, float(max_mb)) * 1024 * 1024)
+        self.data = {}
+        self.order = deque()
+        self.size = 0
+        self.lock = threading.Lock()
+
+    def configure(self, max_mb):
+        with self.lock:
+            self.max_bytes = int(max(0.0, float(max_mb)) * 1024 * 1024)
+            while self.size > self.max_bytes and self.order:
+                k = self.order.popleft()
+                b = self.data.pop(k, None)
+                if b is not None:
+                    self.size -= len(b)
+
+    def get(self, key):
+        if not self.max_bytes:
+            return None
+        with self.lock:
+            return self.data.get(key)
+
+    def put(self, key, body):
+        if not self.max_bytes or not body:
+            return
+        with self.lock:
+            if key in self.data or len(body) > self.max_bytes:
+                return
+            self.data[key] = body
+            self.order.append(key)
+            self.size += len(body)
+            while self.size > self.max_bytes and self.order:
+                k = self.order.popleft()
+                b = self.data.pop(k, None)
+                if b is not None:
+                    self.size -= len(b)
+
+
+TS_CACHE = _TsCache(0)
+
+
+def _start_channel(ch):
+    """后台起刷新线程，立刻返回，不阻塞当前请求。"""
+    ch.last_access = time.time()
+    thread = threading.Thread(target=_ensure_channel, args=(ch,), daemon=True)
+    thread.start()
+    return thread
 
 
 # ================================================================ Spider
 
 class Spider(SpiderBase):
+
     def __init__(self):
-        super(Spider, self).__init__()
+        try:
+            super(Spider, self).__init__()
+        except Exception:
+            pass
         self.brandActor = "📺 央视频直播"
         self.brandDirector = "ysp-live-multi"
+        self.epg_xml = EPG_XML_URL
+        self.epg_ids = {}
+        self.logo_mode = "direct"
+        self.wait = 12.0
+        self.cast_wait = 20.0
+        self.holdback = 1
+        self.cast_entries = False
+        self.live_mode = "proxy"
+
+    # ---------------- 生命周期 ----------------
+    def getName(self):
+        return "央视频"
+
+    def getDependence(self):
+        # 单源版只用标准库（urllib / struct / gzip），不依赖 pycryptodome、cryptography
+        return []
 
     def init(self, extend=""):
-        try: _ensure_local_server()
-        except Exception as e: _log('本地服务失败: %s' % e)
-        try: _ensure_logo_source(wait=0)
-        except Exception: pass
+        global DIRECT
+        opts = {}
+        if isinstance(extend, dict):
+            opts = extend
+        elif isinstance(extend, str) and extend.strip().startswith("{"):
+            try:
+                opts = json.loads(extend)
+            except ValueError:
+                opts = {}
+        self.epg_xml = str(opts.get("epg_xml", EPG_XML_URL) or "")
+        if isinstance(opts.get("epg_ids"), dict):
+            self.epg_ids = {str(k): str(v) for k, v in opts["epg_ids"].items()}
+        self.logo_mode = str(opts.get("logo_mode") or "direct").lower()
+        self.live_mode = str(opts.get("live_mode") or "proxy").lower()
+        # 直播列表由点播列表生成，投屏分类在点播里默认就在，这里默认同样带上，保持一致
+        self.cast_entries = bool(opts.get("cast_entries", True))
+        DIRECT = bool(opts.get("direct", False))
+        try:
+            self.wait = max(3.0, float(opts.get("wait") or 12))
+        except (TypeError, ValueError):
+            self.wait = 12.0
+        try:
+            self.cast_wait = max(3.0, float(opts.get("cast_wait") or 20))
+        except (TypeError, ValueError):
+            self.cast_wait = 20.0
+        try:
+            self.holdback = max(0, int(opts.get("holdback") or 1))
+        except (TypeError, ValueError):
+            self.holdback = 1
+        try:
+            TS_CACHE.configure(float(opts.get("ts_cache_mb") or 0))
+        except (TypeError, ValueError):
+            pass
+        # 投屏只在这里读配置、建客户端，不联网；会话等真正点开投屏频道再建
+        try:
+            CAST.configure(opts)
+        except Exception as error:
+            _log('cast configure failed: %s' % error)
+        _NET.bind(self)
+        try:
+            _ensure_logo_source(wait=0)
+        except Exception:
+            pass
         return True
 
-    def getName(self): return "央视频直播"
-    def isVideoFormat(self, url): return True
-    def manualVideoCheck(self): return False
-    def destroy(self): pass
+    def destroy(self):
+        for ch in CHANNEL_STATE.values():
+            ch.last_access = 0.0
 
+    def isVideoFormat(self, url):
+        return True
+
+    def manualVideoCheck(self):
+        return False
+
+    # ---------------- 入口 ----------------
     def homeContent(self, filter):
-        return {"class": [
-            {"type_name": "央视频道", "type_id": "cctv"},
-            {"type_name": "卫视频道", "type_id": "satellite"},
-            {"type_name": "CGTN",     "type_id": "cgtn"},
-            {"type_name": "4K超清",    "type_id": "4k"},
-            {"type_name": "付费剧场",  "type_id": "premium"},
-            {"type_name": "其他",      "type_id": "other"},
-        ], "filters": {}}
+        classes = [{"type_id": "all", "type_name": "全部频道"}]
+        for key, name in (("cctv", "央视频道"), ("satellite", "卫视频道"),
+                          ("cgtn", "CGTN"), ("4k", "4K超清"),
+                          ("premium", "付费剧场"), ("other", "其他"),
+                          ("cast", "央视高码")):
+            classes.append({"type_id": key, "type_name": name})
+        return {"class": classes, "filters": {}, "list": self._cards("all")}
 
-    def homeVideoContent(self): return {"list": []}
-
-    def _classify(self, base_slug):
-        cats = []
-        if (re.match(r'^cctv\d+$', base_slug) or base_slug == 'cctv5p') and base_slug not in TRUE_4K_CHANNELS:
-            cats.append('cctv')
-        if base_slug in TRUE_4K_CHANNELS or base_slug == 'cctv4kb':
-            cats.append('4k')
-        if base_slug in ('cctvfyjc', 'cctvdyjc', 'cctvhjjc'):
-            cats.append('premium')
-        if base_slug.endswith('ws') or base_slug == 'cetv1':
-            cats.append('satellite')
-        if base_slug.startswith('cgtn'):
-            cats.append('cgtn')
-        if base_slug == 'guoxue':
-            cats.append('other')
-        return cats
-
-    def _make_card(self, slug, name):
-        tag = ''
-        if slug in TRUE_4K_CHANNELS or slug == 'cctv4kb':
-            tag = '真4K'
-        elif slug in BACKEND_CHANNELS:
-            tag = '高码率'
-        return {"vod_id": slug, "vod_name": name, "vod_pic": _logo_url(slug, name),
-                "vod_remarks": format_remarks("央视频", tag),
-                "style": {"type": "rect", "ratio": 1.78}}
+    def homeVideoContent(self):
+        return {"list": self._cards("all")}
 
     def categoryContent(self, tid, pg, filter, extend):
-        cards = [self._make_card(s, n) for s, n, _si, _p, _d, _y in CHANNELS if tid in self._classify(s)]
+        if tid == "cast":
+            self._ensure_cast_ready()
+        cards = self._cards(tid or "all")
         return {"page": 1, "pagecount": 1, "limit": len(cards), "total": len(cards), "list": cards}
 
     def detailContent(self, ids):
-        slug = ids[0] if isinstance(ids, (list, tuple)) else str(ids)
-        info = CHANNEL_MAP.get(slug)
-        if not info: return {"list": []}
-        try:
-            _ensure_local_server()
-            if _has_native(slug):
-                ch = CHANNEL_STATE.get(slug)
-                if ch:
-                    _ensure_channel(ch)
-                    t0 = time.time()
-                    while time.time() - t0 < 3.0:
-                        with ch.lock:
-                            if ch.order: break
-                        time.sleep(0.1)
-            if _has_ysptp(slug):
-                ch_ys = CHANNEL_STATE.get(slug + YSPTP_SLUG_SUFFIX)
-                if ch_ys:
-                    threading.Thread(
-                        target=lambda c: _ensure_channel(c),
-                        args=(ch_ys,), daemon=True).start()
-        except Exception: pass
-
-        lines_1 = []
-        lines_2 = []
-        if _has_native(slug):
-            lines_1.append("超清$%s" % slug)
-        if _has_ysptp(slug):
-            lines_2.append("超清(YSPTP)$%s%s" % (slug, YSPTP_SLUG_SUFFIX))
-        if not lines_1 and not lines_2:
-            lines_1.append("超清$%s" % slug)
-
-        play_from_parts = []
-        play_url_parts = []
-        if lines_1:
-            play_from_parts.append("央视频源1")
-            play_url_parts.append("#".join(lines_1))
-        if lines_2:
-            play_from_parts.append("央视频源2")
-            play_url_parts.append("#".join(lines_2))
-
-        full_desc = "【📺 央视频直播】\n频道: %s\n源1: Script 1 (JCE/bk)\n源2: Script 2 (YSPTP)" % info['name']
-        escaped = (full_desc.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
-
-        vod = {
-            "vod_id": slug, "vod_name": info['name'],
-            "vod_pic": _logo_url(slug, info['name']),
+        raw = ids[0] if isinstance(ids, (list, tuple)) else ids
+        slug = _one(raw).strip()
+        base = _base_slug(slug)
+        info = CHANNEL_MAP.get(base)
+        if not info:
+            return {"list": []}
+        # 投屏是独立分类、独立一路，不再挂成央视频的备选线路2：
+        # 一个 slug 只出一条线路，slug 带 _cast 就只出投屏，否则只出原生源。
+        is_cast = slug != base
+        if is_cast and not info.get("cast"):
+            return {"list": []}
+        if is_cast:
+            self._ensure_cast_ready()
+            play_from = CAST_GROUP_NAME
+            play_url = "高码率(投屏)$%s" % slug
+            desc = "【📺 央视高码】\n频道: %s\n线路: 设备投屏(高码率)\n" \
+                   "独立分类，不与央视频源混用" % info["name"]
+        else:
+            play_from = "央视频源1"
+            play_url = "超清$%s" % base
+            desc = "【📺 央视频直播】\n频道: %s\n线路: JCE/bk 原生源" % info["name"]
+        self._warm(slug)
+        desc = desc.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        return {"list": [{
+            "vod_id": slug, "vod_name": info["name"],
+            "vod_pic": self._logo(base, info["name"]),
             "vod_actor": self.brandActor, "vod_director": self.brandDirector,
-            "vod_remarks": format_remarks("央视频", "直播"),
-            "vod_content": escaped,
-            "vod_play_from": "$$$".join(play_from_parts),
-            "vod_play_url": "$$$".join(play_url_parts),
-        }
-        return {"list": [vod]}
-
-    def playerContent(self, flag, id, vipFlags):
-        del flag, vipFlags
-        slug = str(id).strip()
-        if slug.startswith('http://') or slug.startswith('https://'):
-            return {"parse": 0, "playUrl": "", "url": slug,
-                    "header": {"User-Agent": UA, "Referer": "https://live.cctv.cn/"}}
-        if slug not in CHANNEL_STATE:
-            return {"parse": 0, "playUrl": "", "url": "", "header": {}}
-        try:
-            port = _ensure_local_server()
-        except Exception:
-            return {"parse": 0, "playUrl": "", "url": "", "header": {}}
-        ch = CHANNEL_STATE[slug]
-        _ensure_channel(ch)
-        for _ in range(40):
-            with ch.lock:
-                if ch.order: break
-            time.sleep(0.5)
-        return {
-            "parse": 0, "playUrl": "",
-            "url": "http://127.0.0.1:%d/%s.m3u8" % (port, slug),
-            "header": {"User-Agent": UA, "Referer": "https://live.cctv.cn/"},
-        }
+            "vod_remarks": format_remarks("央视高码" if is_cast else "央视频", "直播"),
+            "vod_content": desc,
+            "vod_play_from": play_from,
+            "vod_play_url": play_url,
+        }]}
+        desc = desc.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        return {"list": [{
+            "vod_id": slug, "vod_name": info["name"],
+            "vod_pic": self._logo(base, info["name"]),
+            "vod_actor": self.brandActor, "vod_director": self.brandDirector,
+            "vod_remarks": "央视频 | 直播",
+            "vod_content": desc,
+            "vod_play_from": "$$$".join(parts_from),
+            "vod_play_url": "$$$".join(parts_url),
+        }]}
 
     def searchContent(self, key, quick, pg="1"):
-        del quick, pg
-        key = (key or "").strip().lower()
+        keyword = (key or "").strip().lower()
         cards = []
-        if key:
-            for s, n, _si, _p, _d, _y in CHANNELS:
-                if key in n.lower() or key in s.lower():
-                    cards.append(self._make_card(s, n))
+        if keyword:
+            for slug, name, _s, _p, _d, _c in CHANNELS:
+                if keyword in name.lower() or keyword in slug.lower():
+                    cards.append(self._card(slug, name))
         return {"page": 1, "pagecount": 1, "limit": len(cards), "total": len(cards), "list": cards}
 
-    def action(self, action): return {"msg": "ok"}
-    def liveContent(self): return ""
-    def localProxy(self, params): return [404, "text/plain; charset=utf-8", "Proxy not configured"]
+    def playerContent(self, flag, id, vipFlags):
+        slug = _one(id).strip()
+        if slug.startswith("http://") or slug.startswith("https://"):
+            return {"parse": 0, "playUrl": "", "url": slug,
+                    "header": {"User-Agent": UA, "Referer": "https://live.cctv.cn/"}}
+        ch = CHANNEL_STATE.get(slug)
+        if ch is None:
+            return {"parse": 0, "playUrl": "", "url": "", "header": {}}
+        self._warm(slug)
+        header = {"User-Agent": UA, "Referer": "https://live.cctv.cn/"}
+        if ch.mode == "cast":
+            header = dict(ch.headers or header)
+            if self.live_mode == "redirect" and _upstream_url(ch):
+                # 直连会丢签名头，只有无需签名的 CDN 才走 302
+                pass
+        return {
+            "parse": 0, "playUrl": "",
+            "url": self._purl(slug=slug),
+            "header": header,
+        }
 
+    # ---------------- 直播源 M3U ----------------
+    def liveContent(self, url=""):
+        if self.epg_xml:
+            lines = ['#EXTM3U tvg-url="%s" x-tvg-url="%s"' % (self.epg_xml, self.epg_xml)]
+        else:
+            lines = ["#EXTM3U"]
+        # 直播列表直接由点播列表生成：点播「全部频道」+ 点播「央视高码」分类，
+        # 两边共用 _entries()，频道集合、顺序、分组永远一致。
+        for item in _live_entries(self.cast_entries):
+            slug, name = item['slug'], item['name']
+            if item['cast']:
+                name = name + " (投屏)"
+            lines.append(self._m3u_entry(slug, name, item['epg'], item['group']))
+            lines.append(self._play_url(slug))
+        return "\n".join(lines) + "\n"
 
-if __name__ == '__main__':
-    import argparse, sys
-    ap = argparse.ArgumentParser()
-    ap.add_argument('--port', type=int, default=LOCAL_PORT_PREFERRED)
-    ap.add_argument('--once', action='store_true')
-    ap.add_argument('--test-slug', default='cctv1')
-    args = ap.parse_args()
-    LOCAL_PORT_PREFERRED = args.port
+    def _play_url(self, slug):
+        if self.live_mode == "redirect":
+            return self._purl(slug=slug, mode="redirect")
+        return self._purl(slug=slug)
 
-    sp = Spider(); sp.init()
-    print("homeContent:", json.dumps(sp.homeContent({}), ensure_ascii=False))
-    cc = sp.categoryContent('cctv', 1, {}, {})
-    print("cctv: %d 个频道" % cc['total'])
-    dc = sp.detailContent([args.test_slug])
-    if dc['list']:
-        v = dc['list'][0]
-        print("detail:", v['vod_name'])
-        print("  play_from:", v['vod_play_from'])
-        print("  play_url :", v['vod_play_url'])
-    pc1 = sp.playerContent('', args.test_slug, [])
-    print("playerContent native:", json.dumps(pc1, ensure_ascii=False))
-    pc2 = sp.playerContent('', args.test_slug + YSPTP_SLUG_SUFFIX, [])
-    print("playerContent ysptp :", json.dumps(pc2, ensure_ascii=False))
-    if args.once:
-        time.sleep(4)
-        for label, pc in [('native', pc1), ('ysptp', pc2)]:
-            if not pc['url']:
-                print("%s: no url" % label); continue
-            try:
-                with urllib.request.urlopen(pc['url'], timeout=15) as r:
-                    body = r.read().decode('utf-8', 'replace')
-                print("%s OK: %s" % (label, body[:200].replace('\n', ' ')))
-            except Exception as e:
-                print("%s 错误: %s" % (label, e))
-        sys.exit(0)
-    port = _LOCAL_PORT
-    print("\n常驻: http://127.0.0.1:%d/%s.m3u8" % (port, args.test_slug))
-    try:
-        while True: time.sleep(3600)
-    except KeyboardInterrupt: pass
+    def _m3u_entry(self, slug, name, epg_slug="", group=""):
+        base = _base_slug(slug)
+        source = epg_slug or base
+        tvg = _safe(self.epg_ids.get(source) or _epg_id(source, name))
+        return '#EXTINF:-1 tvg-id="%s" tvg-name="%s" tvg-logo="%s" group-title="%s",%s' % (
+            tvg, tvg, self._logo(base, name),
+            _safe(group or _group_name(base)), _safe(name))
+
+    # ---------------- 本地代理（取代本地 HTTP 服务） ----------------
+    def localProxy(self, param):
+        try:
+            query = {}
+            for key, value in (param or {}).items():
+                query[str(key)] = _one(value)
+            kind = query.get("type", "")
+            if kind == "diag":
+                return [200, "text/plain; charset=utf-8",
+                        self._diag(query.get("slug"), query.get("mode"))]
+            if kind == "logo":
+                return self._logo_bytes(query.get("slug", ""))
+            slug = query.get("slug") or query.get("id") or ""
+            ch = CHANNEL_STATE.get(slug)
+            if ch is None:
+                return [404, "text/plain; charset=utf-8", "央视频: 未知频道 " + slug]
+            if query.get("seq"):
+                return self._chunk(ch, query["seq"])
+            want_redirect = self.live_mode == "redirect"
+            if query.get("mode") == "redirect":
+                want_redirect = True
+            elif query.get("mode") == "proxy":
+                want_redirect = False
+            if want_redirect:
+                direct = _upstream_url(ch)
+                if direct:
+                    return [302, "text/plain", "",
+                            {"Location": direct, "Cache-Control": "no-store"}]
+            return self._playlist(ch)
+        except Exception as error:
+            return [502, "text/plain; charset=utf-8",
+                    "央视频: %s: %s" % (type(error).__name__, error)]
+
+    def _playlist(self, ch):
+        """返回滚动播放列表。
+
+        直播没有详情页可以预热，所以这里不再同步等握手：后台起刷新线程，
+        最多等 self.wait 秒拿到首帧后就吐出滚动窗口（取不到就等代理线程补上）。
+        """
+        ch.last_access = time.time()
+        candidates = [ch]
+        with ch.lock:
+            ready = bool(ch.order)
+        if not ready:
+            _start_channel(ch)
+        timeout = self.cast_wait if ch.mode == "cast" else self.wait
+        owner = self._first_ready(candidates, timeout)
+        if owner is None:
+            detail = " | ".join("%s:%s" % (c.slug, c.last_error or "超时")
+                                for c in candidates)
+            return [503, "text/plain; charset=utf-8", "央视频: 暂无数据 " + detail]
+        return self._render(owner)
+
+    def _first_ready(self, channels, timeout):
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            for ch in channels:
+                with ch.lock:
+                    if ch.order:
+                        return ch
+            time.sleep(0.15)
+        for ch in channels:
+            with ch.lock:
+                if ch.order:
+                    return ch
+        return None
+
+    def _render(self, ch):
+        holdback = max(0, int(getattr(self, "holdback", 1)))
+        with ch.lock:
+            keys = list(ch.order)
+            segs = [ch.segments[k] for k in keys if k in ch.segments]
+            # 尾部保留 holdback 个切片：刚抓到的那片可能还没落地，播到会卡一下
+            if holdback and len(segs) > holdback + 1:
+                window = segs[-(PLAYLIST_WINDOW + holdback):-holdback]
+            else:
+                window = segs[-PLAYLIST_WINDOW:] if segs else []
+        if not window:
+            return [503, "text/plain; charset=utf-8",
+                    "央视频: 暂无数据 %s" % (ch.last_error or "抓取中")]
+        ch.last_access = time.time()
+        target = max(6, int(max(seg[1] for seg in window) + 0.5))
+        out = ["#EXTM3U", "#EXT-X-VERSION:3",
+               "#EXT-X-TARGETDURATION:%d" % target,
+               "#EXT-X-MEDIA-SEQUENCE:%d" % window[0][0],
+               "#EXT-X-DISCONTINUITY-SEQUENCE:0",
+               "#EXT-X-START:TIME-OFFSET=-15.0"]
+        for seq, dur, pdt, _url in window:
+            if pdt:
+                out.append("#EXT-X-PROGRAM-DATE-TIME:" + pdt)
+            out.append("#EXTINF:%.3f," % dur)
+            out.append(self._purl(slug=ch.slug, seq=seq))
+        return [200, "application/vnd.apple.mpegurl", "\n".join(out) + "\n",
+                {"Cache-Control": "no-cache, no-store"}]
+
+    def _chunk(self, ch, raw_seq):
+        try:
+            seq = int(raw_seq)
+        except (TypeError, ValueError):
+            return [400, "text/plain; charset=utf-8", "央视频: bad seq"]
+        ch.last_access = time.time()
+        with ch.lock:
+            url = None
+            for key in ch.order:
+                seg = ch.segments.get(key)
+                if seg and seg[0] == seq:
+                    url = seg[3]
+                    break
+        if not url:
+            return [404, "text/plain; charset=utf-8", "央视频: 切片已过期"]
+        cached = TS_CACHE.get(url)
+        if cached is not None:
+            return [200, "video/mp2t", cached, {"Cache-Control": "no-cache, no-store"}]
+        headers = ch.headers or {"User-Agent": UA}
+        try:
+            if ch.mode == "cast":
+                status, body, _ = _cast_client().get(url, headers)
+            else:
+                status, body, _ = _http("GET", url, headers, None, 20)
+        except Exception as error:
+            return [502, "text/plain; charset=utf-8",
+                    "央视频: 切片错误 %s" % type(error).__name__]
+        if status < 200 or status >= 300 or not body:
+            return [502, "text/plain; charset=utf-8", "央视频: 切片 HTTP %d" % status]
+        TS_CACHE.put(url, body)
+        return [200, "video/mp2t", body, {"Cache-Control": "no-cache, no-store"}]
+
+    def _logo_bytes(self, slug):
+        info = CHANNEL_MAP.get(slug) or {}
+        with _LOGO_CACHE_LOCK:
+            data = _LOGO_CACHE.get(slug)
+        if data is None:
+            data = _fetch_logo_bytes(slug, info.get("name", ""))
+            with _LOGO_CACHE_LOCK:
+                _LOGO_CACHE[slug] = data
+        return [200, "image/png", data, {"Cache-Control": "public, max-age=86400"}]
+
+    def _probe(self, slug, mode=""):
+        """?type=diag&slug=cctv1 —— 当场拉一次，看看卡在哪个源。"""
+        ch = CHANNEL_STATE.get(slug)
+        if ch is None:
+            return "未知频道: %s\n" % slug
+        out = ["频道: %s  模式: %s" % (ch.slug, ch.mode)]
+        if mode == "redirect" or (self.live_mode == "redirect" and mode != "proxy"):
+            started = time.time()
+            url = _upstream_url(ch)
+            out.append("直连取址: %.2fs -> %s" % (time.time() - started, url or "(失败)"))
+            if url:
+                st, body, _ = _http("GET", url, {"User-Agent": UA}, None, HTTP_TIMEOUT)
+                out.append("直连拉取: HTTP %d, %d 字节" % (st, len(body or b"")))
+                out.append((body or b"").decode("utf-8", "replace")[:200].replace("\n", " | "))
+        started = time.time()
+        ok = _refresh_once(ch)
+        with ch.lock:
+            count = len(ch.order)
+        out.append("代理取流: ok=%s %.2fs segs=%d err=%s"
+                   % (ok, time.time() - started, count, ch.last_error))
+        return "\n".join(out) + "\n"
+
+    def _diag(self, slug="", mode=""):
+        if slug:
+            return self._probe(slug, mode)
+        lines = ["net: %s" % ("urllib(直连)" if DIRECT else "容器fetch优先/urllib兜底"),
+                 "logo源: %s" % (_LOGO_BASE or "(未探测到)"),
+                 "频道总数: %d" % len(CHANNEL_STATE), ""]
+        try:
+            for line in CAST.status().splitlines():
+                lines.append(line)
+        except Exception as error:
+            lines.append("投屏状态: 不可用 (%s)" % type(error).__name__)
+        lines.append("")
+        for slug in sorted(CHANNEL_STATE):
+            ch = CHANNEL_STATE[slug]
+            with ch.lock:
+                count = len(ch.order)
+            lines.append("%-14s mode=%-6s segs=%-4d err=%s" % (slug, ch.mode, count, ch.last_error))
+        return "\n".join(lines) + "\n"
+
+    # ---------------- 小工具 ----------------
+    def _purl(self, **kw):
+        # 容器不一定提供 getProxyUrl（本地直跑 / 老版本壳子），拿不到就退化成空串，
+        # 由调用方走直连兜底，避免整站直接抛异常。
+        try:
+            base = (self.getProxyUrl() or "").strip()
+        except Exception:
+            base = ""
+        if not base:
+            return ""
+        sep = "&" if "?" in base else "?"
+        return base + sep + "&".join(
+            "%s=%s" % (k, urllib.parse.quote(str(v), safe="")) for k, v in kw.items())
+
+    def _warm(self, slug):
+        """后台预热，真正等数据在代理返回播放列表时才做。"""
+        base = _base_slug(slug)
+        if slug != base:
+            self._ensure_cast_ready()
+        for target in (slug, base):
+            ch = CHANNEL_STATE.get(target)
+            if ch is None:
+                continue
+            ch.last_access = time.time()
+        ch = CHANNEL_STATE.get(slug)
+        if ch is None:
+            return
+        threading.Thread(target=_ensure_channel, args=(ch,), daemon=True).start()
+
+    def _logo(self, slug, name=""):
+        direct = _logo_url(slug, name)
+        if self.logo_mode != "proxy":
+            if direct:
+                return direct
+        proxied = self._purl(type="logo", slug=slug)
+        return proxied or direct or ""
+
+    def _card(self, slug, name=""):
+        base = _base_slug(slug)
+        tag = ""
+        if base in TRUE_4K_CHANNELS:
+            tag = "真4K"
+        elif base in BACKEND_CHANNELS:
+            tag = "高码率"
+        if slug != base:
+            tag = ("%s | " % tag if tag else "") + "投屏"
+        return {"vod_id": slug, "vod_name": name,
+                "vod_pic": self._logo(base, name),
+                "vod_remarks": ("央视频 | %s" % tag) if tag else "央视频",
+                "style": {"type": "rect", "ratio": 1.78}}
+
+    def _cards(self, tid):
+        return [self._card(item['slug'], item['name']) for item in _entries(tid or 'all')]
+
+    # ---------------- 投屏（第二线路） ----------------
+    def _ensure_cast_ready(self):
+        """只有进投屏分类 / 打开投屏线路时才建会话，启动阶段不碰。"""
+        try:
+            CAST.prepare()
+        except Exception as error:
+            _log('cast prepare failed: %s' % error)
