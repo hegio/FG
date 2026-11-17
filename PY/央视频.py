@@ -1765,7 +1765,7 @@ LOGO_MIRRORS = [
     'https://jsd.onmicrosoft.cn/gh/fanmingming/live@main/tv/',
     'https://gcore.jsdelivr.net/gh/fanmingming/live@main/tv/',
     'https://cdn.jsdelivr.net/gh/fanmingming/live@main/tv/',
-    'https://ghproxy.net/https://raw.githubusercontent.com/fanmingming/live/main/tv/',
+    'https://gh-proxy.com/https://raw.githubusercontent.com/fanmingming/live/main/tv/',
     'https://live.fanmingming.com/tv/',
 ]
 LOGO_PROBE_FILE = 'CCTV1.png'
