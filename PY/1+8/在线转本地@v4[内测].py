@@ -85,7 +85,7 @@ _FS_SKIP_DIRS = {
     'Ringtones', 'Alarms', 'Notifications', 'Podcasts', 'Audiobooks',
 }
 
-GITHUB_PROXY = "https://gh-proxy.com/"
+GITHUB_PROXY = "https://gh-proxy.org/"
 
 DOWNLOAD_EXTS = {
     '.js', '.py', '.jar', '.json', '.txt', '.m3u', '.m3u8',
